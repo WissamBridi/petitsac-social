@@ -29,7 +29,7 @@ DRY = os.environ.get("DRY_RUN", "") == "1"
 FORCE_ID = os.environ.get("FORCE_ID", "").strip()
 
 
-def log(m): print("[%s] %s" % (datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"), m), flush=True)
+def log(m): print("[%s] %s" % (datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), m), flush=True)
 
 
 def load(path, default):
@@ -150,7 +150,7 @@ def main():
     if link is None:
         log("ECHEC: le post reste en file pour le prochain run."); sys.exit(1)
     if not DRY:
-        published.append({"id": post["id"], "published_at": datetime.datetime.utcnow().isoformat() + "Z",
+        published.append({"id": post["id"], "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                           "permalink": link if isinstance(link, str) else ""})
         save(PUBLISHED, published)
         log("Journalise. Total publies: %d" % len(published))

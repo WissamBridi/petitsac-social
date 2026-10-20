@@ -2,8 +2,8 @@ name: Publication Instagram quotidienne
 
 on:
   schedule:
-    # 11:00 UTC = 13:00 Paris (CEST) / 12:00 Paris (CET). Modifiable.
-    - cron: "0 11 * * *"
+    # 16:00 UTC = 16:00 au Sénégal (GMT, pas de changement d'heure). Modifiable.
+    - cron: "0 16 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
