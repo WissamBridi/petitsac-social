@@ -142,6 +142,15 @@ def main():
     posts = load(POSTS, [])
     published = load(PUBLISHED, [])
     done = {e["id"] for e in published}
+    # Garde-fou : un seul post par jour (heure du Sénégal = UTC). Plusieurs créneaux cron existent
+    # pour rattraper un déclenchement GitHub sauté ; seul le premier qui passe publie.
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    already = [e["id"] for e in published if str(e.get("published_at", ""))[:10] == today]
+    if already and not FORCE_ID:
+        if DRY:
+            log("(info) deja publie aujourd'hui (%s) ; DRY_RUN continue quand meme pour tester la chaine." % already[0])
+        else:
+            log("Deja publie aujourd'hui (%s), rien a faire sur ce creneau." % already[0]); return
     post = pick(posts, done)
     if not post:
         log("Rien a publier aujourd'hui."); return

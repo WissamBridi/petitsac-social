@@ -2,8 +2,13 @@ name: Publication Instagram quotidienne
 
 on:
   schedule:
-    # 16:00 UTC = 16:00 au Sénégal (GMT, pas de changement d'heure). Modifiable.
-    - cron: "0 16 * * *"
+    # Heure du Sénégal = UTC. GitHub peut retarder ou sauter un créneau (surtout pile à l'heure) :
+    # plusieurs créneaux de rattrapage, décalés de l'heure pile. Le script ne publie qu'UNE fois par jour.
+    - cron: "7 16 * * *"
+    - cron: "37 16 * * *"
+    - cron: "7 17 * * *"
+    - cron: "7 18 * * *"
+    - cron: "7 20 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -14,6 +19,10 @@ on:
         description: "Publier un id de post précis (optionnel)"
         required: false
         default: ""
+  # Test technique : un push qui modifie ce fichier lance un run en DRY_RUN (ne publie jamais).
+  push:
+    branches: [main]
+    paths: [".github/test-run"]
 
 permissions:
   contents: write
@@ -34,18 +43,19 @@ jobs:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           BASE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/images/"
           GRAPH_VERSION: "v21.0"
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          DRY_RUN: ${{ github.event_name == 'push' && '1' || github.event.inputs.dry_run }}
           FORCE_ID: ${{ github.event.inputs.force_id }}
         run: python3 scripts/publish.py
 
       - name: Journaliser le post publié
-        if: ${{ github.event.inputs.dry_run != '1' }}
+        if: ${{ github.event_name != 'push' && github.event.inputs.dry_run != '1' }}
         run: |
           if [ -n "$(git status --porcelain content/published.json)" ]; then
             git config user.name "petitsac-bot"
             git config user.email "bot@petitsac.local"
             git add content/published.json
             git commit -m "chore: post publié le $(date -u +%Y-%m-%d)"
+            git pull --rebase -q origin main || true
             git push
           else
             echo "Rien à journaliser."
