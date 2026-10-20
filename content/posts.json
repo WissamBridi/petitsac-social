@@ -1,0 +1,65 @@
+[
+  {
+    "id": "2026-10-21-carrousel-presence",
+    "date": "2026-10-21",
+    "type": "carousel",
+    "images": ["A1.png", "A2.png", "A3.png", "A4.png", "A5.png"],
+    "caption": "Un modèle générique, c'est une marque qui ressemble à toutes les autres. ✦\n\nVotre présence en ligne raconte qui vous êtes avant même le premier mot. Chez Petit Sac, on conçoit des sites internet et des identités sur mesure : pensés pour vous, jamais copiés-collés.\n\nLa preuve avant la promesse : on vous livre des résultats, pas des discours.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Teranga #AgenceDakar #SiteInternet #ImageDeMarque #IdentiteVisuelle #CommunicationDigitale #MarketingDigital"
+  },
+  {
+    "id": "2026-10-22-punchline-petitsac",
+    "date": "2026-10-22",
+    "type": "image",
+    "images": ["da_punchline.png"],
+    "caption": "Une grande marque commence souvent dans un petit sac. ✦\n\nUne étincelle, une idée, et l'envie de voir grand. On est là pour la faire briller.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Teranga #ImageDeMarque #Branding #AgenceDakar"
+  },
+  {
+    "id": "2026-10-23-chiffre-5secondes",
+    "date": "2026-10-23",
+    "type": "image",
+    "images": ["da_chiffre.png"],
+    "caption": "80% des visiteurs jugent votre site en moins de 5 secondes. ✦\n\nLa première impression se joue en ligne. Un site lent ou confus fait fuir vos clients avant même qu'ils vous découvrent.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #SiteInternet #CreationDeSite #MarketingDigital #AgenceDakar"
+  },
+  {
+    "id": "2026-10-24-carrousel-site",
+    "date": "2026-10-24",
+    "type": "carousel",
+    "images": ["B1.png", "B2.png", "B3.png", "B4.png", "B5.png"],
+    "caption": "Un site internet, ce n'est pas une carte de visite. C'est votre meilleur commercial, ouvert jour et nuit. ✦\n\nS'il est lent, confus ou vide, il fait fuir vos clients sans que vous le sachiez. On construit des sites rapides, clairs et pensés pour convertir.\n\nFaisons le point sur le vôtre. Écrivez-nous en privé.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Teranga #SiteInternet #CreationDeSite #Conversion #PME #MarketingDigital"
+  },
+  {
+    "id": "2026-10-25-realisation-cocotte",
+    "date": "2026-10-25",
+    "type": "image",
+    "images": ["da_realisation.png"],
+    "caption": "La Cocotte : un site de réservation qui remplit la salle. ✦\n\nRésa en 3 clics, pensée pour un restaurant de Ngaparou. Simple pour l'équipe, fluide pour les clients.\n\nUn projet, une envie ? Écrivez-nous en privé.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Ngaparou #Restaurant #SiteInternet #Reservation #AgenceDakar"
+  },
+  {
+    "id": "2026-10-26-question-visites",
+    "date": "2026-10-26",
+    "type": "image",
+    "images": ["da_question.png"],
+    "caption": "Votre site vous ramène des clients, ou juste des visites ? ✦\n\nDites-nous en commentaire. Un site, ça doit travailler pour vous, pas seulement exister.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #SiteInternet #Conversion #MarketingDigital #AgenceDakar"
+  },
+  {
+    "id": "2026-10-27-carrousel-resto",
+    "date": "2026-10-27",
+    "type": "carousel",
+    "images": ["C1.png", "C2.png", "C3.png", "C4.png", "C5.png"],
+    "caption": "Chaque commande notée à la main, c'est du temps perdu et des erreurs en plus. ✦\n\nWhatsApp et carnets papier freinent votre croissance. Une application sur mesure réunit vos commandes, vos réservations et vos encaissements au même endroit, et les automatise.\n\nPrêt à digitaliser votre établissement ? Écrivez-nous en privé.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Teranga #Restaurant #RestaurantDakar #ApplicationMobile #FoodDakar #Saly"
+  },
+  {
+    "id": "2026-10-28-astuce-typo",
+    "date": "2026-10-28",
+    "type": "image",
+    "images": ["da_astuce.png"],
+    "caption": "Le conseil Petit Sac : une seule police de titre suffit. ✦\n\nLa cohérence crée la confiance. Mieux vaut une typographie maîtrisée que trois polices qui se battent.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Design #IdentiteVisuelle #ConseilDesign #AgenceDakar"
+  },
+  {
+    "id": "2026-10-29-offre-services",
+    "date": "2026-10-29",
+    "type": "image",
+    "images": ["da_offre.png"],
+    "caption": "Ce qu'on met dans votre sac : ✦\n\nLogo & identité visuelle. Sites internet & applications. Réseaux sociaux & contenu. Photo, vidéo & animation.\n\nUn seul studio, du début à la diffusion. Écrivez-nous en privé.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Teranga #StudioCreatif #CommunicationDigitale #AgenceDakar"
+  }
+]

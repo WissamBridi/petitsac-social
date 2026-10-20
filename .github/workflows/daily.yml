@@ -1,0 +1,52 @@
+name: Publication Instagram quotidienne
+
+on:
+  schedule:
+    # 11:00 UTC = 13:00 Paris (CEST) / 12:00 Paris (CET). Modifiable.
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Préparer sans publier (1 = oui)"
+        required: false
+        default: "0"
+      force_id:
+        description: "Publier un id de post précis (optionnel)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ig-daily
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publier le post du jour
+        env:
+          IG_USER_ID: "17841422677537452"
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          BASE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/images/"
+          GRAPH_VERSION: "v21.0"
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          FORCE_ID: ${{ github.event.inputs.force_id }}
+        run: python3 scripts/publish.py
+
+      - name: Journaliser le post publié
+        if: ${{ github.event.inputs.dry_run != '1' }}
+        run: |
+          if [ -n "$(git status --porcelain content/published.json)" ]; then
+            git config user.name "petitsac-bot"
+            git config user.email "bot@petitsac.local"
+            git add content/published.json
+            git commit -m "chore: post publié le $(date -u +%Y-%m-%d)"
+            git push
+          else
+            echo "Rien à journaliser."
+          fi
