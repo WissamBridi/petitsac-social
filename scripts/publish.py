@@ -73,9 +73,19 @@ def wait_ready(cid):
     return True
 
 
-def create_image_container(img_url, caption=None, carousel_item=False):
+def norm_tags(tags):
+    """user_tags : liste de pseudos Instagram (str) ou de {username, x, y}. Position par défaut : centre."""
+    out = []
+    for t in tags or []:
+        if isinstance(t, str): t = {"username": t}
+        out.append({"username": t["username"].lstrip("@"), "x": float(t.get("x", 0.5)), "y": float(t.get("y", 0.5))})
+    return out
+
+
+def create_image_container(img_url, caption=None, carousel_item=False, user_tags=None):
     p = {"image_url": img_url, "access_token": TOKEN}
     if caption is not None: p["caption"] = caption
+    if user_tags: p["user_tags"] = json.dumps(norm_tags(user_tags))
     if carousel_item: p["is_carousel_item"] = "true"
     r = api("POST", IG + "/media", p)
     if "error" in r: log("echec container (%s): %s" % (img_url, r["error"])); return None
@@ -95,12 +105,12 @@ def publish_post(post):
     caption = post.get("caption", "")
     if not imgs: log("post sans image"); return None
     if len(imgs) == 1:
-        cid = create_image_container(BASE + imgs[0], caption=caption)
+        cid = create_image_container(BASE + imgs[0], caption=caption, user_tags=post.get("user_tags"))
         if not cid or not wait_ready(cid): return None
     else:
         children = []
         for name in imgs[:10]:
-            c = create_image_container(BASE + name, carousel_item=True)
+            c = create_image_container(BASE + name, carousel_item=True, user_tags=post.get("user_tags") if name == imgs[0] else None)
             if not c: return None
             children.append(c)
         for c in children:
