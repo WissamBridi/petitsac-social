@@ -15,7 +15,7 @@ Variables d'environnement attendues (fournies par GitHub Actions / .env) :
 
 Images referencees par leur nom de fichier dans posts.json ; l'URL finale = BASE_URL + nom.
 """
-import datetime, json, os, sys, time, urllib.parse, urllib.request, urllib.error
+import datetime, json, os, re, sys, time, urllib.parse, urllib.request, urllib.error
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 POSTS = os.path.join(ROOT, "content", "posts.json")
@@ -165,6 +165,15 @@ def main():
     if not post:
         log("Rien a publier aujourd'hui."); return
     log("Publication du post '%s' (%d image(s))" % (post.get("id"), len(post.get("images", []))))
+    # Règle : toute référence/source doit être vérifiable en ligne au moment de publier.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import check_refs
+    for u in re.findall(r"https?://[^\s)»]+", post.get("caption", "")):
+        err = check_refs.check_url(u.rstrip(".,;:"))
+        if err:
+            log("ECHEC: lien invalide %s (%s) ; le post reste en file." % (u, err)); sys.exit(1)
+    if post.get("references") and not re.search(r"https?://|@\w", post.get("caption", "")) and not post.get("user_tags"):
+        log("ECHEC: reference client sans lien verifiable ; le post reste en file."); sys.exit(1)
     link = publish_post(post)
     if link is None:
         log("ECHEC: le post reste en file pour le prochain run."); sys.exit(1)
