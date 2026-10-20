@@ -173,6 +173,8 @@ def main():
             log("(info) deja publie aujourd'hui (%s) ; DRY_RUN continue quand meme pour tester la chaine." % already[0])
         else:
             log("Deja publie aujourd'hui (%s), rien a faire sur ce creneau." % already[0]); return
+    if DRY:
+        log("(info) permission commentaire du token : %s" % ("OUI" if "instagram_manage_comments" in token_scopes() else "NON"))
     post = pick(posts, done)
     if not post:
         log("Rien a publier aujourd'hui."); return
