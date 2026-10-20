@@ -48,7 +48,7 @@ jobs:
         run: python3 scripts/publish.py
 
       - name: Journaliser le post publié
-        if: ${{ github.event_name != 'push' && github.event.inputs.dry_run != '1' }}
+        if: ${{ always() && github.event_name != 'push' && github.event.inputs.dry_run != '1' }}
         run: |
           if [ -n "$(git status --porcelain content/published.json)" ]; then
             git config user.name "petitsac-bot"

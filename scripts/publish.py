@@ -100,6 +100,17 @@ def publish_container(cid):
     return mid, link.get("permalink", "")
 
 
+def token_scopes():
+    r = api("GET", "debug_token", {"input_token": TOKEN, "access_token": TOKEN})
+    return set((r.get("data") or {}).get("scopes") or [])
+
+
+def post_comment(media_id, message):
+    r = api("POST", "%s/comments" % media_id, {"message": message, "access_token": TOKEN})
+    if "error" in r: log("echec commentaire: %s" % r["error"]); return None
+    return r.get("id")
+
+
 def publish_post(post):
     imgs = post.get("images", [])
     caption = post.get("caption", "")
@@ -126,6 +137,7 @@ def publish_post(post):
     if not res: return None
     mid, link = res
     log("PUBLIE media_id=%s %s" % (mid, link))
+    post["_media_id"] = mid
     return link
 
 
@@ -172,16 +184,31 @@ def main():
         err = check_refs.check_url(u.rstrip(".,;:"))
         if err:
             log("ECHEC: lien invalide %s (%s) ; le post reste en file." % (u, err)); sys.exit(1)
-    if post.get("references") and not re.search(r"https?://|@\w", post.get("caption", "")) and not post.get("user_tags"):
+    if post.get("comment"):
+        if "instagram_manage_comments" not in token_scopes():
+            log("ECHEC: ce post doit avoir son lien en commentaire, mais le token n'a pas la permission "
+                "instagram_manage_comments ; publication refusee, le post reste en file."); sys.exit(1)
+        for u in re.findall(r"https?://[^\s)»]+", post["comment"]):
+            err = check_refs.check_url(u.rstrip(".,;:"))
+            if err: log("ECHEC: lien du commentaire invalide %s (%s) ; le post reste en file." % (u, err)); sys.exit(1)
+    if post.get("references") and not re.search(r"https?://|@\w", post.get("caption", "") + " " + post.get("comment", "")) and not post.get("user_tags"):
         log("ECHEC: reference client sans lien verifiable ; le post reste en file."); sys.exit(1)
     link = publish_post(post)
     if link is None:
         log("ECHEC: le post reste en file pour le prochain run."); sys.exit(1)
     if not DRY:
-        published.append({"id": post["id"], "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                          "permalink": link if isinstance(link, str) else ""})
-        save(PUBLISHED, published)
+        entry = {"id": post["id"], "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                 "permalink": link if isinstance(link, str) else ""}
+        comment_failed = False
+        if post.get("comment"):
+            cid = post_comment(post.get("_media_id"), post["comment"])
+            entry["comment_ok"] = bool(cid)
+            comment_failed = not cid
+            log(("COMMENTAIRE poste (id=%s)" % cid) if cid else "ALERTE: post publie mais commentaire NON poste")
+        published.append(entry)
+        save(PUBLISHED, published)      # toujours journaliser : jamais de doublon
         log("Journalise. Total publies: %d" % len(published))
+        if comment_failed: sys.exit(1)  # run en echec -> e-mail d'alerte GitHub
 
 
 if __name__ == "__main__":

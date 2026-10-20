@@ -49,7 +49,7 @@ def main():
   for f in FILES:
       if not os.path.exists(f): continue
       for post in json.load(open(f, encoding="utf-8")):
-          cap = post.get("caption", ""); pid = post.get("id"); issues = []
+          cap = post.get("caption", "") + "\n" + post.get("comment", ""); pid = post.get("id"); issues = []
           urls = re.findall(r"https?://[^\s)»]+", cap)
           handles = set(re.findall(r"(?<![\w.])@([A-Za-z0-9_.]{2,30})", cap))
           handles |= {(t if isinstance(t, str) else t["username"]).lstrip("@") for t in post.get("user_tags", [])}
