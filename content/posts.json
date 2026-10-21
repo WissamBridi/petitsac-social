@@ -93,5 +93,35 @@
     "references": [
       "Clearnelis"
     ]
+  },
+  {
+    "id": "reel-01-pov",
+    "type": "reel",
+    "video": "reel_1.mp4",
+    "cover": "reel_1_cover.jpg",
+    "share_to_feed": true,
+    "caption": "Votre client n’attend pas 3 secondes. ✦\n\n53 % des visites mobiles sont abandonnées si la page met plus de 3 secondes à charger. Au Sénégal, tout commence sur le téléphone : un site lent, c’est un client qui part chez le voisin.\n\nEnvoyez ce Reel à un gérant qui doit l’entendre.\n\nSource : Google, étude « The Need for Mobile Speed » (2016-2017), reprise dans le guide « Speed Matters » : https://www.thinkwithgoogle.com/_qs/documents/2738/brainfood-mobile-performance-vol3.pdf\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #Restaurant #SiteInternet #Mobile #MarketingDigital"
+  },
+  {
+    "id": "reel-02-transformation",
+    "type": "reel",
+    "video": "reel_2.mp4",
+    "cover": "reel_2_cover.jpg",
+    "share_to_feed": true,
+    "references": [
+      "La Cocotte"
+    ],
+    "user_tags": [
+      "lacocotte_restaurant_ngaparou"
+    ],
+    "caption": "Votre site ressemble à un modèle générique ? On l’a refait sur mesure pour La Cocotte, à Ngaparou. ✦\n\nRéservation en ligne, carte complète, livraison à domicile : tout est pensé pour le téléphone de vos clients.\n\nLe site : https://lacocotte-ngaparou.com\nLe restaurant : @lacocotte_restaurant_ngaparou\n\nAbonnez-vous pour voir d’autres transformations.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #LaCocotte #Ngaparou #Senegal #SiteSurMesure #Restaurant #WebDesign"
+  },
+  {
+    "id": "reel-03-trois-erreurs",
+    "type": "reel",
+    "video": "reel_3.mp4",
+    "cover": "reel_3_cover.jpg",
+    "share_to_feed": true,
+    "caption": "3 erreurs qui font fuir vos clients, et comment les corriger. ✦\n\n01 · Un site qui rame : il vous faut un site léger, pensé pour le téléphone.\n02 · On ne comprend pas ce que vous vendez : dites-le dès le premier écran.\n03 · Aucun bouton pour vous contacter : réserver ou écrire doit se faire en un geste.\n\nEt votre site, il en fait combien ? Dites-le-nous en commentaire.\n\nEnregistrez ce Reel pour le relire, et abonnez-vous pour la suite.\n\nP.S. le petit mot en plus. ✦\n\n#PetitSac #Dakar #Senegal #SiteInternet #ConseilsBusiness #Restaurant #Commerce"
   }
 ]

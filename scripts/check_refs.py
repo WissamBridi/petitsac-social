@@ -60,7 +60,7 @@ def main():
               if cache[u]: issues.append("LIEN %s : %s" % (u, cache[u]))
           for h in sorted(handles):
               k = "@" + h
-              if k not in cache: cache[k] = check_handle(h, post["images"][0]) if (IG and TOKEN and BASE.strip("/")) else "non vérifié (pas de token)"
+              if k not in cache: cache[k] = check_handle(h, (post.get("images") or [post.get("cover")])[0]) if (IG and TOKEN and BASE.strip("/")) else "non vérifié (pas de token)"
               if cache[k]: issues.append("COMPTE @%s : %s" % (h, cache[k]))
           if post.get("references") and not urls and not handles:
               issues.append("RÉFÉRENCE sans aucun lien (%s)" % ", ".join(post["references"]))

@@ -14,6 +14,8 @@ Variables d'environnement attendues (fournies par GitHub Actions / .env) :
   FORCE_ID          optionnel: publie ce post precis (ignore la date)
 
 Images referencees par leur nom de fichier dans posts.json ; l'URL finale = BASE_URL + nom.
+Reel : {"type": "reel", "video": "x.mp4", "cover": "x.jpg", "caption": ..., "share_to_feed": true}
+(video MP4 H.264 + AAC 48 kHz <= 128 kb/s, 9:16, 3 a 90 s ; hebergee comme les images).
 """
 import datetime, json, os, re, sys, time, urllib.parse, urllib.request, urllib.error
 
@@ -27,6 +29,12 @@ BASE = os.environ.get("BASE_URL", "").strip().rstrip("/") + "/"
 VER = os.environ.get("GRAPH_VERSION", "v21.0").strip()
 DRY = os.environ.get("DRY_RUN", "") == "1"
 FORCE_ID = os.environ.get("FORCE_ID", "").strip()
+# Deux files independantes : le post du jour (image/carrousel) et le Reel du jour, chacune 1 fois par jour.
+KIND = os.environ.get("KIND", "post").strip() or "post"
+if os.environ.get("POSTS_FILE"): POSTS = os.environ["POSTS_FILE"]   # test local uniquement
+
+
+def kind_of(p): return "reel" if p.get("type") == "reel" else "post"
 
 
 def log(m): print("[%s] %s" % (datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), m), flush=True)
@@ -63,14 +71,14 @@ def api(method, node, params):
         return {"error": {"message": str(e)}}
 
 
-def wait_ready(cid):
-    for _ in range(20):
+def wait_ready(cid, tries=20, pause=3):
+    for _ in range(tries):
         st = api("GET", cid, {"fields": "status_code", "access_token": TOKEN})
         sc = st.get("status_code")
         if sc == "FINISHED": return True
         if sc == "ERROR": log("container ERROR: %s" % json.dumps(st)); return False
-        time.sleep(3)
-    return True
+        time.sleep(pause)
+    return tries <= 20   # image : on tente quand meme ; video : pas prete = echec
 
 
 def norm_tags(tags):
@@ -111,7 +119,28 @@ def post_comment(media_id, message):
     return r.get("id")
 
 
+def publish_reel(post):
+    p = {"media_type": "REELS", "video_url": BASE + post["video"], "caption": post.get("caption", ""),
+         "share_to_feed": "true" if post.get("share_to_feed", True) else "false", "access_token": TOKEN}
+    if post.get("cover"): p["cover_url"] = BASE + post["cover"]
+    if post.get("user_tags"): p["user_tags"] = json.dumps([{"username": t["username"] if isinstance(t, dict) else t.lstrip("@")} for t in post["user_tags"]])
+    r = api("POST", IG + "/media", p)
+    if "error" in r: log("echec container reel: %s" % r["error"]); return None
+    cid = r.get("id")
+    log("Reel en traitement chez Instagram (container %s)..." % cid)
+    if not wait_ready(cid, tries=72, pause=5): log("ECHEC: la video n'a pas ete traitee a temps"); return None
+    if DRY:
+        log("DRY_RUN: Reel pret a publier, non envoye. creation_id=%s" % cid); return "dry"
+    res = publish_container(cid)
+    if not res: return None
+    mid, link = res
+    log("PUBLIE (Reel) media_id=%s %s" % (mid, link))
+    post["_media_id"] = mid
+    return link
+
+
 def publish_post(post):
+    if post.get("type") == "reel": return publish_reel(post)
     imgs = post.get("images", [])
     caption = post.get("caption", "")
     if not imgs: log("post sans image"); return None
@@ -147,6 +176,7 @@ def pick(posts, done_ids):
         for p in posts:
             if p.get("id") == FORCE_ID: return p
         log("FORCE_ID introuvable: %s" % FORCE_ID); return None
+    posts = [p for p in posts if kind_of(p) == KIND]
     # 1) posts dates <= aujourd'hui non publies, le plus ancien d'abord
     dated = sorted([p for p in posts if p.get("date") and p["id"] not in done_ids],
                    key=lambda p: p["date"])
@@ -167,18 +197,18 @@ def main():
     # Garde-fou : un seul post par jour (heure du Sénégal = UTC). Plusieurs créneaux cron existent
     # pour rattraper un déclenchement GitHub sauté ; seul le premier qui passe publie.
     today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-    already = [e["id"] for e in published if str(e.get("published_at", ""))[:10] == today]
+    already = [e["id"] for e in published if str(e.get("published_at", ""))[:10] == today and e.get("kind", "post") == KIND]
     if already and not FORCE_ID:
         if DRY:
             log("(info) deja publie aujourd'hui (%s) ; DRY_RUN continue quand meme pour tester la chaine." % already[0])
         else:
-            log("Deja publie aujourd'hui (%s), rien a faire sur ce creneau." % already[0]); return
+            log("Deja publie aujourd'hui (%s, file %s), rien a faire sur ce creneau." % (already[0], KIND)); return
     if DRY:
         log("(info) permission commentaire du token : %s" % ("OUI" if "instagram_manage_comments" in token_scopes() else "NON"))
     post = pick(posts, done)
     if not post:
         log("Rien a publier aujourd'hui."); return
-    log("Publication du post '%s' (%d image(s))" % (post.get("id"), len(post.get("images", []))))
+    log("Publication du post '%s' (%s)" % (post.get("id"), "Reel" if post.get("type") == "reel" else "%d image(s)" % len(post.get("images", []))))
     # Règle : toute référence/source doit être vérifiable en ligne au moment de publier.
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import check_refs
@@ -199,7 +229,7 @@ def main():
     if link is None:
         log("ECHEC: le post reste en file pour le prochain run."); sys.exit(1)
     if not DRY:
-        entry = {"id": post["id"], "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        entry = {"id": post["id"], "kind": kind_of(post), "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                  "permalink": link if isinstance(link, str) else ""}
         comment_failed = False
         if post.get("comment"):

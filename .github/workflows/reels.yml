@@ -1,0 +1,63 @@
+name: Publication Reel quotidien
+
+on:
+  schedule:
+    # Reel du jour à 19 h (heure du Sénégal = UTC), en plus du post de 16 h. Créneaux de rattrapage ;
+    # le script ne publie qu'UN Reel par jour (file « reel » indépendante de la file « post »).
+    - cron: "17 19 * * *"
+    - cron: "47 19 * * *"
+    - cron: "37 20 * * *"
+    - cron: "17 21 * * *"
+    - cron: "17 22 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Préparer sans publier (1 = oui)"
+        required: false
+        default: "0"
+      force_id:
+        description: "Publier un id de post précis (optionnel)"
+        required: false
+        default: ""
+  # Test technique : un push qui modifie ce fichier lance un run en DRY_RUN (ne publie jamais).
+  push:
+    branches: [main]
+    paths: [".github/test-run-reel"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ig-daily
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publier le Reel du jour
+        env:
+          IG_USER_ID: "17841422677537452"
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          BASE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/images/"
+          GRAPH_VERSION: "v21.0"
+          DRY_RUN: ${{ github.event_name == 'push' && '1' || github.event.inputs.dry_run }}
+          FORCE_ID: ${{ github.event.inputs.force_id }}
+          KIND: "reel"
+        run: python3 scripts/publish.py
+
+      - name: Journaliser le Reel publié
+        if: ${{ always() && github.event_name != 'push' && github.event.inputs.dry_run != '1' }}
+        run: |
+          if [ -n "$(git status --porcelain content/published.json)" ]; then
+            git config user.name "petitsac-bot"
+            git config user.email "bot@petitsac.local"
+            git add content/published.json
+            git commit -m "chore: Reel publié le $(date -u +%Y-%m-%d)"
+            git pull --rebase -q origin main || true
+            git push
+          else
+            echo "Rien à journaliser."
+          fi

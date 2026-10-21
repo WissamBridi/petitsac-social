@@ -45,6 +45,7 @@ jobs:
           GRAPH_VERSION: "v21.0"
           DRY_RUN: ${{ github.event_name == 'push' && '1' || github.event.inputs.dry_run }}
           FORCE_ID: ${{ github.event.inputs.force_id }}
+          KIND: "post"
         run: python3 scripts/publish.py
 
       - name: Journaliser le post publié
