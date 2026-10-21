@@ -7,8 +7,14 @@ on:
     - cron: "7 16 * * *"
     - cron: "37 16 * * *"
     - cron: "7 17 * * *"
+    - cron: "37 17 * * *"
     - cron: "7 18 * * *"
+    - cron: "37 18 * * *"
+    - cron: "7 19 * * *"
     - cron: "7 20 * * *"
+    - cron: "7 21 * * *"
+    - cron: "7 22 * * *"
+    - cron: "7 23 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

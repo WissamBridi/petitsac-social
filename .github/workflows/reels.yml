@@ -6,9 +6,14 @@ on:
     # le script ne publie qu'UN Reel par jour (file « reel » indépendante de la file « post »).
     - cron: "17 19 * * *"
     - cron: "47 19 * * *"
-    - cron: "37 20 * * *"
+    - cron: "17 20 * * *"
+    - cron: "47 20 * * *"
     - cron: "17 21 * * *"
+    - cron: "47 21 * * *"
     - cron: "17 22 * * *"
+    - cron: "47 22 * * *"
+    - cron: "17 23 * * *"
+    - cron: "47 23 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
