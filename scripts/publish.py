@@ -170,6 +170,19 @@ def publish_post(post):
     return link
 
 
+def already_on_instagram(kind):
+    """Garde-fou indépendant du journal : un média du même type déjà publié aujourd'hui (UTC) sur le compte ?
+    Évite un doublon si deux déclencheurs (GitHub en retard + secours local) passent le même jour."""
+    r = api("GET", IG + "/media", {"fields": "id,timestamp,media_type,media_product_type,permalink", "limit": "10", "access_token": TOKEN})
+    if "error" in r: log("(info) lecture du fil impossible : %s" % r["error"]); return None
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    for m in r.get("data", []):
+        if not str(m.get("timestamp", "")).startswith(today): continue
+        is_reel = m.get("media_product_type") == "REELS" or m.get("media_type") == "VIDEO"
+        if (kind == "reel") == is_reel: return m.get("permalink") or m.get("id")
+    return None
+
+
 def pick(posts, done_ids):
     today = datetime.date.today().isoformat()
     if FORCE_ID:
@@ -203,6 +216,11 @@ def main():
             log("(info) deja publie aujourd'hui (%s) ; DRY_RUN continue quand meme pour tester la chaine." % already[0])
         else:
             log("Deja publie aujourd'hui (%s, file %s), rien a faire sur ce creneau." % (already[0], KIND)); return
+    if not FORCE_ID:
+        live = already_on_instagram(KIND)
+        if live:
+            if DRY: log("(info) un média '%s' est déjà en ligne aujourd'hui (%s) ; DRY_RUN continue." % (KIND, live))
+            else: log("Deja en ligne aujourd'hui sur Instagram (%s, file %s), rien a faire." % (live, KIND)); return
     if DRY:
         log("(info) permission commentaire du token : %s" % ("OUI" if "instagram_manage_comments" in token_scopes() else "NON"))
     post = pick(posts, done)
