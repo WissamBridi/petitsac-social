@@ -2,18 +2,19 @@ name: Publication Reel quotidien
 
 on:
   schedule:
-    # Reel du jour à 19 h (heure du Sénégal = UTC), en plus du post de 16 h. Créneaux de rattrapage ;
-    # le script ne publie qu'UN Reel par jour (file « reel » indépendante de la file « post »).
-    - cron: "17 19 * * *"
-    - cron: "47 19 * * *"
-    - cron: "17 20 * * *"
-    - cron: "47 20 * * *"
-    - cron: "17 21 * * *"
-    - cron: "47 21 * * *"
-    - cron: "17 22 * * *"
-    - cron: "47 22 * * *"
-    - cron: "17 23 * * *"
-    - cron: "47 23 * * *"
+    # Reel du jour à 16 h (heure du Sénégal = UTC), comme le post. Créneaux de rattrapage ; publish.py ne publie
+    # qu'un Reel par jour et seulement dans la plage 16:00-23:50 UTC.
+    - cron: "12 16 * * *"
+    - cron: "42 16 * * *"
+    - cron: "12 17 * * *"
+    - cron: "42 17 * * *"
+    - cron: "12 18 * * *"
+    - cron: "42 18 * * *"
+    - cron: "12 19 * * *"
+    - cron: "12 20 * * *"
+    - cron: "12 21 * * *"
+    - cron: "12 22 * * *"
+    - cron: "12 23 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
