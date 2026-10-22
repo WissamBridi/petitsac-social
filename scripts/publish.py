@@ -37,6 +37,18 @@ if os.environ.get("POSTS_FILE"): POSTS = os.environ["POSTS_FILE"]   # test local
 def kind_of(p): return "reel" if p.get("type") == "reel" else "post"
 
 
+# Plage horaire de publication (heure du Sénégal = UTC). GitHub déclenche parfois ses créneaux avec des HEURES
+# de retard : un créneau du soir arrivé après minuit publiait en pleine nuit ET consommait le quota du jour
+# suivant (incident du 22/10). Hors plage : on ne publie rien, le prochain créneau du jour s'en chargera.
+WINDOW = {"post": (16 * 60, 23 * 60 + 30), "reel": (19 * 60, 23 * 60 + 50)}
+
+
+def in_window(kind, now=None):
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    m = now.hour * 60 + now.minute; a, b = WINDOW[kind]
+    return a <= m <= b
+
+
 def log(m): print("[%s] %s" % (datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), m), flush=True)
 
 
@@ -209,6 +221,11 @@ def main():
     done = {e["id"] for e in published}
     # Garde-fou : un seul post par jour (heure du Sénégal = UTC). Plusieurs créneaux cron existent
     # pour rattraper un déclenchement GitHub sauté ; seul le premier qui passe publie.
+    if not FORCE_ID and not in_window(KIND):
+        lo, hi = WINDOW[KIND]
+        msg = "Hors plage de publication %s (%02d:%02d-%02d:%02d UTC) : rien a faire." % (KIND, lo // 60, lo % 60, hi // 60, hi % 60)
+        if DRY: log("(info) " + msg + " DRY_RUN continue pour tester la chaine.")
+        else: log(msg); return
     today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     already = [e["id"] for e in published if str(e.get("published_at", ""))[:10] == today and e.get("kind", "post") == KIND]
     if already and not FORCE_ID:
