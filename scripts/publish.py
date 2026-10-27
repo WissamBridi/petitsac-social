@@ -196,7 +196,7 @@ def already_on_instagram(kind):
 
 
 def pick(posts, done_ids):
-    today = datetime.date.today().isoformat()
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()   # heure du Sénégal (UTC), pas celle du Mac
     if FORCE_ID:
         for p in posts:
             if p.get("id") == FORCE_ID: return p
