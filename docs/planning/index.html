@@ -158,6 +158,7 @@ function build({ posts, pub, hold }) {
     if (doneToday || mins > END[kind]) d.setUTCDate(d.getUTCDate() + 1);
     nextStart[kind] = new Date(d);
     posts.filter((p) => kindOf(p) === kind && !done.has(p.id) && !held.has(p.id)).forEach((p) => {
+      if (p.date && p.date > dayKey(d)) d.setTime(Date.parse(p.date + 'T00:00:00Z'));   // date fixée : jamais avant
       const k = dayKey(d);
       rows.push({ p, kind, day: k, status: k === today && mins >= 16 * 60 ? 'late' : 'next' });
       d.setUTCDate(d.getUTCDate() + 1);
