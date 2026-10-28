@@ -64,13 +64,32 @@ details[open] summary::before{content:"− "}
 details p{white-space:pre-wrap;margin-top:6px;overflow-wrap:anywhere}
 .empty{color:var(--soft);font-style:italic;padding:8px 0}
 .err{background:#FDEBDD;border-radius:12px;padding:16px;color:#6A2E10}
-dialog{border:0;padding:0;background:transparent;max-width:min(420px,92vw)}
+dialog{margin:auto;border:0;padding:0;background:transparent;max-width:min(420px,92vw)}
 dialog::backdrop{background:rgba(12,8,6,.82)}
 dialog video{width:100%;max-height:86vh;border-radius:16px;display:block;background:#000}
 dialog img{width:100%;border-radius:16px;display:block}
 dialog .x{position:absolute;top:10px;right:10px;z-index:2;background:#fff;border:0;border-radius:999px;width:36px;height:36px;font:700 18px Inter;cursor:pointer}
 dialog form{position:relative}
 footer{margin-top:40px;color:var(--soft);font-size:12px}
+.hbtn{display:flex;gap:8px;flex-wrap:wrap}
+.refresh.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.mv{align-self:flex-start;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;font:600 12px Inter;color:var(--terra);cursor:pointer}
+.edit{display:flex;flex-direction:column;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px}
+.edit .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.edit input{font:600 14px Inter;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:#fff;color:var(--ink)}
+.edit small{color:var(--soft);font-size:12px;line-height:1.35}
+.btn{border:0;border-radius:999px;padding:8px 14px;font:700 13px Inter;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn.ghost{background:transparent;color:var(--soft);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:wait}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:12px;font:600 14px Inter;z-index:50;max-width:92vw;display:none}
+.toast.on{display:block}
+.toast.bad{background:#8E2A12}
+.tok{background:var(--card);border-radius:18px;padding:22px;max-width:min(520px,92vw);color:var(--ink)}
+.tok h3{font:italic 400 30px/1.1 'Instrument Serif',serif;margin-bottom:10px}
+.tok ol{padding-left:20px;margin:10px 0;color:var(--soft);font-size:14px}
+.tok input{width:100%;font:500 14px Inter;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0 12px}
+.tok .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+dialog.tokd{max-width:min(520px,92vw)}
 @media (max-width:720px){
   .kpis{grid-template-columns:repeat(2,1fr)}
   .day{grid-template-columns:1fr;gap:8px}
@@ -88,7 +107,7 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
       <h1>Le <em>planning</em></h1>
       <p class="sub">Tout ce qui est publié et tout ce qui arrive. Une publication et un Reel chaque jour à 16&#8239;h (heure du Sénégal).</p>
     </div>
-    <button class="refresh" id="refresh">Actualiser</button>
+    <div class="hbtn"><button class="refresh" id="editBtn">Modifier les dates</button><button class="refresh" id="refresh">Actualiser</button></div>
   </header>
 
   <div class="kpis" id="kpis"></div>
@@ -105,6 +124,21 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
 </div>
 
 <dialog id="dlg"><form method="dialog"><button class="x" aria-label="Fermer">×</button><div id="dlgBody"></div></form></dialog>
+<dialog id="tokDlg" class="tokd"><div class="tok">
+  <h3>Activer la modification</h3>
+  <p>Pour changer une date, la page écrit directement dans la file du robot sur GitHub. Il lui faut une clé d’accès, à créer une seule fois&#8239;:</p>
+  <ol>
+    <li>Ouvrez <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a></li>
+    <li>Nom&#8239;: «&#8239;Planning Petit Sac&#8239;», expiration&#8239;: 1 an</li>
+    <li>Repository access&#8239;: <b>Only select repositories</b> → <b>petitsac-social</b></li>
+    <li>Permissions → Repository permissions → <b>Contents&#8239;: Read and write</b></li>
+    <li>Generate token, copiez la clé et collez-la ici</li>
+  </ol>
+  <input id="tokIn" type="password" autocomplete="off" placeholder="github_pat_…">
+  <p style="font-size:12px;color:var(--soft)">La clé reste uniquement dans ce navigateur. Elle ne donne accès qu’au dépôt du planning.</p>
+  <div class="row"><button class="btn ghost" id="tokCancel">Annuler</button><button class="btn" id="tokOk">Activer</button></div>
+</div></dialog>
+<div class="toast" id="toast"></div>
 
 <script>
 // Sources : la file (posts.json), le journal (published.json) et la mise de côté (hold.json) du dépôt, lus en direct
@@ -130,7 +164,30 @@ function titles(p) {
   return { ep, title: (lines[0] || p.id).replace(/\s*✦\s*$/, '') };
 }
 
+// Modification : clé GitHub (Contents read/write sur ce seul dépôt) gardée dans ce navigateur uniquement
+const API = 'https://api.github.com/repos/WissamBridi/petitsac-social/contents/content/';
+const KEY = 'ps-planning-token';
+const store = { get: () => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } },
+  set: (v) => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch {} } };
+let TOKEN = store.get(), EDIT = false, SHA = null;
+const unb64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, '')), (c) => c.charCodeAt(0)));
+const b64 = (s) => { const u = new TextEncoder().encode(s); let o = ''; for (let i = 0; i < u.length; i += 0x8000) o += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(o); };
+const gh = (url, opt = {}) => fetch(url, { ...opt, cache: 'no-store', headers: { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json', ...(opt.headers || {}) } });
+
+function toast(msg, bad) {
+  const t = $('toast'); t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.add('on');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), bad ? 7000 : 4000);
+}
+
 async function load() {
+  if (TOKEN) {
+    // Avec la clé : lecture par l'API (raw.githubusercontent garde un cache de quelques minutes après une modification)
+    const get = async (f) => { const r = await gh(API + f + '?ref=main'); if (!r.ok) throw new Error(f + ' : ' + r.status); const j = await r.json(); if (f === 'posts.json') SHA = j.sha; return JSON.parse(unb64(j.content)); };
+    try {
+      const [posts, pub, hold] = await Promise.all([get('posts.json'), get('published.json'), get('hold.json').catch(() => [])]);
+      return { posts, pub, hold };
+    } catch (e) { if (/ 401$/.test(e.message)) { TOKEN = ''; store.set(''); EDIT = false; syncEdit(); toast('Clé GitHub refusée ou expirée : réactivez la modification.', true); } else throw e; }
+  }
   const bust = '?t=' + Date.now();
   const get = (f) => fetch(RAW + f + bust, { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(f + ' : ' + r.status); return r.json(); });
   const [posts, pub, hold] = await Promise.all([get('posts.json'), get('published.json'), get('hold.json').catch(() => [])]);
@@ -150,20 +207,24 @@ function build({ posts, pub, hold }) {
     rows.push({ p, kind, day: e.published_at.slice(0, 10), at: e.published_at, link: e.permalink, status: 'done' });
   });
 
-  // À venir : chaque file avance d'un élément par jour à 16 h
+  // À venir : on rejoue jour par jour la règle de publish.py (pick) : un élément par file et par jour,
+  // d'abord le plus ancien daté dont la date est arrivée, sinon le premier sans date ; sinon le jour reste vide.
   const nextStart = {};
   ['post', 'reel'].forEach((kind) => {
     const doneToday = pub.some((e) => (e.kind || kindOf(byId[e.id] || {})) === kind && e.published_at.slice(0, 10) === today);
     const d = new Date(today + 'T00:00:00Z');
     if (doneToday || mins > END[kind]) d.setUTCDate(d.getUTCDate() + 1);
-    nextStart[kind] = new Date(d);
-    posts.filter((p) => kindOf(p) === kind && !done.has(p.id) && !held.has(p.id)).forEach((p) => {
-      if (p.date && p.date > dayKey(d)) d.setTime(Date.parse(p.date + 'T00:00:00Z'));   // date fixée : jamais avant
+    nextStart[kind] = dayKey(d);
+    const left = posts.filter((p) => kindOf(p) === kind && !done.has(p.id) && !held.has(p.id));
+    let last = null;
+    for (let guard = 0; left.length && guard < 1000; guard++) {
       const k = dayKey(d);
-      rows.push({ p, kind, day: k, status: k === today && mins >= 16 * 60 ? 'late' : 'next' });
+      const due = left.filter((p) => p.date && p.date <= k).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))[0];
+      const p = due || left.find((x) => !x.date);
+      if (p) { left.splice(left.indexOf(p), 1); rows.push({ p, kind, day: k, status: k === today && mins >= 16 * 60 ? 'late' : 'next' }); last = k; }
       d.setUTCDate(d.getUTCDate() + 1);
-    });
-    nextStart[kind + 'End'] = new Date(d);   // premier jour sans rien de programmé
+    }
+    nextStart[kind + 'Last'] = last;   // dernier jour programmé
   });
   return { rows, today, nextStart, held: posts.filter((p) => held.has(p.id)) };
 }
@@ -179,6 +240,7 @@ function card(r) {
     <div class="tags"><span class="tag t-${kind}">${SLOT[kind]}</span><span class="tag ${st[0]}">${st[1]}</span></div>
     ${ep ? `<div class="ep">${esc(ep)}</div>` : ''}<div class="ttl">${esc(title)}</div>
     <div class="when">${when}</div>
+    ${EDIT && r.status !== 'done' && r.day ? `<div class="mvz" data-id="${esc(p.id)}" data-day="${r.day}"><button class="mv">Changer la date</button></div>` : ''}
     ${r.link ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">Voir sur Instagram ↗</a>` : ''}
     ${p.caption ? `<details><summary>Légende</summary><p>${esc(p.caption)}</p></details>` : ''}
   </div></div>`;
@@ -198,7 +260,7 @@ function render() {
   const msgs = ['post', 'reel'].map((k) => {
     const left = count(k);
     return left === 0 ? `<b>${SLOT[k]}s</b> : la file est vide, plus rien n’est programmé. Il faut préparer un nouveau lot.`
-      : left <= 2 ? `<b>${SLOT[k]}s</b> : plus que ${left} en file, dernier envoi le ${fmtWeek(dayKey(new Date(nextStart[k + 'End'] - 864e5)))} ${fmtDay(dayKey(new Date(nextStart[k + 'End'] - 864e5)))}` : '';
+      : left <= 2 ? `<b>${SLOT[k]}s</b> : plus que ${left} en file, dernier envoi le ${fmtWeek(nextStart[k + 'Last'])} ${fmtDay(nextStart[k + 'Last'])}` : '';
   }).filter(Boolean);
   $('alert').innerHTML = `<i>!</i><div>${msgs.join('<br>')}</div>`;
   $('alert').classList.toggle('on', msgs.length > 0);
@@ -218,6 +280,74 @@ function render() {
     (held.length && FILTER !== 'reel' ? `<div class="sec">Mis de côté</div><div class="items">${held.map((p) => card({ p, kind: kindOf(p), status: 'next' }).replace('Programmé', 'En attente').replace('Prévu à 16 h', 'Hors file, en attente de votre feu vert')).join('')}</div>` : '');
   $('foot').textContent = 'Mis à jour le ' + new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Dakar', dateStyle: 'long', timeStyle: 'short' }) + ' (heure du Sénégal).';
 }
+
+// Déplacer un élément : toute la file de ce type reçoit sa date actuelle (le planning affiché devient la règle),
+// puis l'élément prend le nouveau jour ; si un autre l'occupait déjà, les deux échangent leurs dates.
+async function moveTo(id, newDay) {
+  const fresh = await load();                    // relu juste avant d'écrire (le robot a pu publier entre-temps)
+  if (!TOKEN) throw new Error('modification désactivée');
+  const { rows, nextStart } = build(fresh);
+  const me = rows.find((r) => r.p.id === id && r.status !== 'done');
+  if (!me) throw new Error('cet élément vient d’être publié');
+  const kind = me.kind, up = rows.filter((r) => r.kind === kind && r.status !== 'done');
+  if (newDay < nextStart[kind]) throw new Error(`le premier jour possible pour les ${SLOT[kind].toLowerCase()}s est le ${fmtDay(nextStart[kind])}`);
+  if (newDay === me.day) return 'same';
+  const other = up.find((r) => r.day === newDay && r.p.id !== id);
+  up.forEach((r) => (r.p.date = r.day));
+  if (other) other.p.date = me.day;
+  me.p.date = newDay;
+  const msg = `planning : ${id} déplacé au ${newDay}` + (other ? ` (échange avec ${other.p.id})` : '') + ' depuis la webapp';
+  const r = await gh(API + 'posts.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg, content: b64(JSON.stringify(fresh.posts, null, 2) + '\n'), sha: SHA, branch: 'main' }) });
+  if (r.status === 409 || r.status === 422) throw new Error('la file a changé pendant la modification, réessayez');
+  if (r.status === 403 || r.status === 404) throw new Error('la clé n’a pas le droit d’écrire (Contents : Read and write sur petitsac-social)');
+  if (!r.ok) throw new Error('GitHub a répondu ' + r.status);
+  SHA = (await r.json()).content.sha;
+  DATA = fresh; render();
+  return other ? `Échangé avec « ${titles(other.p).title} », désormais le ${fmtDay(me.day)}`
+    : `Déplacé au ${fmtWeek(newDay)} ${fmtDay(newDay)}, le ${fmtDay(me.day)} reste libre. Le robot en tient compte dès maintenant.`;
+}
+
+function syncEdit() {
+  $('editBtn').classList.toggle('on', EDIT);
+  $('editBtn').textContent = EDIT ? 'Modification activée ✓' : 'Modifier les dates';
+}
+
+$('editBtn').addEventListener('click', () => {
+  if (EDIT) { EDIT = false; syncEdit(); render(); return; }
+  if (TOKEN) { EDIT = true; syncEdit(); refresh(); return; }
+  $('tokIn').value = ''; $('tokDlg').showModal();
+});
+$('tokCancel').addEventListener('click', () => $('tokDlg').close());
+$('tokOk').addEventListener('click', async () => {
+  const v = $('tokIn').value.trim(); if (!v) return;
+  $('tokOk').disabled = true;
+  try {
+    const r = await fetch(API + 'posts.json?ref=main', { cache: 'no-store', headers: { Authorization: 'Bearer ' + v, Accept: 'application/vnd.github+json' } });
+    if (!r.ok) throw new Error(r.status === 401 ? 'clé invalide' : 'accès refusé au dépôt (' + r.status + ')');
+    TOKEN = v; store.set(v); EDIT = true; syncEdit(); $('tokDlg').close(); toast('Modification activée sur ce navigateur.'); refresh();
+  } catch (e) { toast('Impossible d’activer : ' + e.message, true); }
+  finally { $('tokOk').disabled = false; }
+});
+$('out').addEventListener('click', async (e) => {
+  const z = e.target.closest('.mvz'); if (!z) return;
+  if (e.target.closest('.mv')) {
+    const kind = (DATA.posts.find((p) => p.id === z.dataset.id) || {}).type === 'reel' ? 'reel' : 'post';
+    z.innerHTML = `<div class="edit"><div class="row"><input type="date" value="${z.dataset.day}" min="${build(DATA).nextStart[kind]}">
+      <button class="btn" data-a="ok">Enregistrer</button><button class="btn ghost" data-a="no">Annuler</button></div>
+      <small>Publication à 16 h ce jour-là. Si un${kind === 'reel' ? '' : 'e'} autre ${SLOT[kind].toLowerCase()} y est déjà prévu${kind === 'reel' ? '' : 'e'}, les deux échangent leurs dates.</small></div>`;
+    return;
+  }
+  const a = e.target.closest('[data-a]'); if (!a) return;
+  if (a.dataset.a === 'no') { render(); return; }
+  const day = z.querySelector('input').value; if (!day) return;
+  z.querySelectorAll('button').forEach((b) => (b.disabled = true)); a.textContent = 'Enregistrement…';
+  try {
+    const res = await moveTo(z.dataset.id, day);
+    toast(res === 'same' ? 'Date inchangée.' : res);
+    if (res === 'same') render();
+  } catch (err) { toast('Non enregistré : ' + err.message, true); render(); }
+});
 
 async function refresh() {
   try { DATA = await load(); render(); }
@@ -239,6 +369,7 @@ $('out').addEventListener('click', (e) => {
 $('dlg').addEventListener('close', () => ($('dlgBody').innerHTML = ''));
 $('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
 $('refresh').addEventListener('click', refresh);
+syncEdit();
 refresh();
 </script>
 </body>
