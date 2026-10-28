@@ -54,6 +54,7 @@ h1 em{color:var(--terra)}
 .ttl{font:600 15px/1.3 Inter;overflow-wrap:anywhere}
 .ep{font:italic 400 18px/1.1 'Instrument Serif',serif;color:var(--terra)}
 .when{color:var(--soft);font-size:13px}
+.snd{font:600 12px Inter;color:#4A3AA8;overflow-wrap:anywhere}
 .meta a{color:var(--terra);font-weight:600;font-size:13px;text-decoration:none}
 .meta a:hover{text-decoration:underline}
 details{font-size:13px;color:var(--soft)}
@@ -204,7 +205,7 @@ function build({ posts, pub, hold }) {
   pub.forEach((e) => {
     const p = byId[e.id] || { id: e.id };
     const kind = e.kind || kindOf(p);
-    rows.push({ p, kind, day: e.published_at.slice(0, 10), at: e.published_at, link: e.permalink, status: 'done' });
+    rows.push({ p, kind, day: e.published_at.slice(0, 10), at: e.published_at, link: e.permalink, audio: e.audio, status: 'done' });
   });
 
   // À venir : on rejoue jour par jour la règle de publish.py (pick) : un élément par file et par jour,
@@ -229,6 +230,14 @@ function build({ posts, pub, hold }) {
   return { rows, today, nextStart, held: posts.filter((p) => held.has(p.id)) };
 }
 
+// Son Instagram : celui posé à la publication (journal), sinon celui prévu
+function sound(r) {
+  const a = r.status === 'done' ? r.audio : r.p.audio;
+  if (a === 'none') return 'Sans son ajouté';
+  if (a && a.title) return a.title + (a.artist ? ' · ' + a.artist : '');
+  return r.status === 'done' ? 'Son d’origine du Reel' : 'Son tendance du jour, choisi à la publication';
+}
+
 function card(r) {
   const { p, kind } = r, { ep, title } = titles(p);
   const img = kind === 'reel' ? p.cover : (p.images || [])[0];
@@ -240,6 +249,7 @@ function card(r) {
     <div class="tags"><span class="tag t-${kind}">${SLOT[kind]}</span><span class="tag ${st[0]}">${st[1]}</span></div>
     ${ep ? `<div class="ep">${esc(ep)}</div>` : ''}<div class="ttl">${esc(title)}</div>
     <div class="when">${when}</div>
+    ${kind === 'reel' ? `<div class="snd">♪ ${esc(sound(r))}</div>` : ''}
     ${EDIT && r.status !== 'done' && r.day ? `<div class="mvz" data-id="${esc(p.id)}" data-day="${r.day}"><button class="mv">Changer la date</button></div>` : ''}
     ${r.link ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">Voir sur Instagram ↗</a>` : ''}
     ${p.caption ? `<details><summary>Légende</summary><p>${esc(p.caption)}</p></details>` : ''}

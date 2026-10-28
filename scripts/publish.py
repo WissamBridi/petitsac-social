@@ -67,8 +67,8 @@ def save(path, data):
     os.replace(tmp, path)
 
 
-def api(method, node, params):
-    url = "https://graph.facebook.com/%s/%s" % (VER, node)
+def api(method, node, params, ver=None):
+    url = "https://graph.facebook.com/%s/%s" % (ver or VER, node)
     data = urllib.parse.urlencode(params).encode()
     if method == "GET":
         url += "?" + urllib.parse.urlencode(params); data = None
@@ -131,12 +131,53 @@ def post_comment(media_id, message):
     return r.get("id")
 
 
+# Son tendance Instagram posé sur le Reel à la publication (API Audio, Facebook Login, v22.0 minimum).
+# Champ "audio" du post : absent ou "auto" = son tendance du jour ; {"id", "title", "audio_volume", "video_volume"} = son choisi ;
+# "none" = pas de son ajouté. Volumes par défaut : notre voix devant, la tendance en fond.
+AUDIO_VER = VER if VER >= "v22.0" else "v22.0"
+GENERIC_SOUND = re.compile(r"^(audio d.origine|original audio|son original)$", re.I)
+VOL = {"music_bed": 18, "no_bed": 30}   # notre Reel a déjà sa musique (bed) / voix + effets seuls (sans_musique)
+
+
+def trending_audio(recent_ids):
+    """Le son tendance du moment : d'abord les sons Reels populaires titrés (souvent des morceaux du moment),
+    sinon la musique tendance de Meta. Jamais un son déjà utilisé sur nos derniers Reels."""
+    for kind in ("original_sound", "music"):
+        r = api("GET", "ig_audio", {"audio_type": kind, "user_id": IG, "access_token": TOKEN}, ver=AUDIO_VER)
+        if "error" in r: log("(info) sons tendance %s indisponibles: %s" % (kind, r["error"].get("message"))); continue
+        for a in r.get("audio") or []:
+            t = (a.get("title") or "").strip()
+            if not t or GENERIC_SOUND.match(t) or a.get("audio_id") in recent_ids: continue
+            if (a.get("duration_in_ms") or 0) < 25000: continue   # assez long pour couvrir un Reel
+            return {"id": a["audio_id"], "title": t, "artist": a.get("display_artist") or a.get("ig_username") or "", "type": kind}
+    return None
+
+
+def audio_config(post, recent_ids):
+    want = post.get("audio", "auto")
+    if want == "none": return None
+    a = want if isinstance(want, dict) else trending_audio(recent_ids)
+    if not a: return None
+    vol = a.get("audio_volume") or VOL["no_bed" if post.get("sans_musique") else "music_bed"]
+    return {"id": a["id"], "title": a.get("title", ""), "artist": a.get("artist", ""),
+            "conf": {"audio_id": a["id"], "audio_volume": int(vol), "video_volume": int(a.get("video_volume") or 100)}}
+
+
 def publish_reel(post):
     p = {"media_type": "REELS", "video_url": BASE + post["video"], "caption": post.get("caption", ""),
          "share_to_feed": "true" if post.get("share_to_feed", True) else "false", "access_token": TOKEN}
     if post.get("cover"): p["cover_url"] = BASE + post["cover"]
     if post.get("user_tags"): p["user_tags"] = json.dumps([{"username": t["username"] if isinstance(t, dict) else t.lstrip("@")} for t in post["user_tags"]])
-    r = api("POST", IG + "/media", p)
+    au = audio_config(post, post.get("_recent_audio", set()))
+    r = None
+    if au:
+        r = api("POST", IG + "/media", dict(p, audio_configuration=json.dumps(au["conf"])), ver=AUDIO_VER)
+        if "error" in r:
+            log("(info) son tendance refuse (%s) : publication sans son ajoute." % r["error"].get("message")); au = None
+        else:
+            log("Son tendance : %s%s (volume %d)" % (au["title"], " · " + au["artist"] if au["artist"] else "", au["conf"]["audio_volume"]))
+    if not au: r = api("POST", IG + "/media", p)
+    post["_audio"] = au
     if "error" in r: log("echec container reel: %s" % r["error"]); return None
     cid = r.get("id")
     log("Reel en traitement chez Instagram (container %s)..." % cid)
@@ -260,12 +301,14 @@ def main():
             if err: log("ECHEC: lien du commentaire invalide %s (%s) ; le post reste en file." % (u, err)); sys.exit(1)
     if post.get("references") and not re.search(r"https?://|@\w", post.get("caption", "") + " " + post.get("comment", "")) and not post.get("user_tags"):
         log("ECHEC: reference client sans lien verifiable ; le post reste en file."); sys.exit(1)
+    post["_recent_audio"] = {e["audio"]["id"] for e in published[-10:] if isinstance(e.get("audio"), dict)}
     link = publish_post(post)
     if link is None:
         log("ECHEC: le post reste en file pour le prochain run."); sys.exit(1)
     if not DRY:
         entry = {"id": post["id"], "kind": kind_of(post), "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                  "permalink": link if isinstance(link, str) else ""}
+        if post.get("_audio"): entry["audio"] = {k: post["_audio"][k] for k in ("id", "title", "artist")}
         comment_failed = False
         if post.get("comment"):
             cid = post_comment(post.get("_media_id"), post["comment"])
