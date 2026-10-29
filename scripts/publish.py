@@ -40,7 +40,7 @@ def kind_of(p): return "reel" if p.get("type") == "reel" else "post"
 # Plage horaire de publication (heure du Sénégal = UTC). GitHub déclenche parfois ses créneaux avec des HEURES
 # de retard : un créneau du soir arrivé après minuit publiait en pleine nuit ET consommait le quota du jour
 # suivant (incident du 22/10). Hors plage : on ne publie rien, le prochain créneau du jour s'en chargera.
-WINDOW = {"post": (16 * 60, 23 * 60 + 30), "reel": (16 * 60, 23 * 60 + 50)}   # tout part à 16 h (demande de Wissam, 22/10)
+WINDOW = {"post": (19 * 60, 23 * 60 + 30), "reel": (16 * 60, 23 * 60 + 50)}   # Reels à 16 h, photos à 19 h (demande de Wissam, 29/10)
 
 
 def in_window(kind, now=None):

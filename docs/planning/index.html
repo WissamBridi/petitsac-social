@@ -106,7 +106,7 @@ dialog.tokd{max-width:min(520px,92vw)}
     <div>
       <div class="brand">Petit Sac · Instagram @petitsac_sng</div>
       <h1>Le <em>planning</em></h1>
-      <p class="sub">Tout ce qui est publié et tout ce qui arrive. Une publication et un Reel chaque jour à 16&#8239;h (heure du Sénégal).</p>
+      <p class="sub">Tout ce qui est publié et tout ce qui arrive. Chaque jour, un Reel à 16&#8239;h et une publication photo à 19&#8239;h (heure du Sénégal).</p>
     </div>
     <div class="hbtn"><button class="refresh" id="editBtn">Modifier les dates</button><button class="refresh" id="refresh">Actualiser</button></div>
   </header>
@@ -146,6 +146,7 @@ dialog.tokd{max-width:min(520px,92vw)}
 const RAW = 'https://raw.githubusercontent.com/WissamBridi/petitsac-social/main/content/';
 const MEDIA = '../images/';
 const SLOT = { post: 'Publication', reel: 'Reel' };
+const HOUR = { post: 19, reel: 16 };   // heure de publication (heure du Sénégal = UTC)
 const END = { post: 23 * 60 + 30, reel: 23 * 60 + 50 };   // fin de la fenêtre de publication (minutes, UTC = heure du Sénégal)
 let FILTER = 'all', DATA = null;
 
@@ -222,7 +223,7 @@ function build({ posts, pub, hold }) {
       const k = dayKey(d);
       const due = left.filter((p) => p.date && p.date <= k).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))[0];
       const p = due || left.find((x) => !x.date);
-      if (p) { left.splice(left.indexOf(p), 1); rows.push({ p, kind, day: k, status: k === today && mins >= 16 * 60 ? 'late' : 'next' }); last = k; }
+      if (p) { left.splice(left.indexOf(p), 1); rows.push({ p, kind, day: k, status: k === today && mins >= HOUR[kind] * 60 ? 'late' : 'next' }); last = k; }
       d.setUTCDate(d.getUTCDate() + 1);
     }
     nextStart[kind + 'Last'] = last;   // dernier jour programmé
@@ -244,7 +245,7 @@ function card(r) {
   const media = img ? `<button class="thumb ${kind}" data-k="${kind}" data-v="${esc(p.video || '')}" data-i="${esc(img)}" aria-label="Voir">
       <img loading="lazy" src="${MEDIA + esc(img)}" alt="">${kind === 'reel' ? '<span class="play"></span>' : ''}</button>` : '';
   const st = { done: ['s-done', 'Publié'], next: ['s-next', 'Programmé'], late: ['s-late', 'En cours'] }[r.status];
-  const when = r.status === 'done' ? `Publié à ${fmtTime(r.at)}` : r.status === 'late' ? 'Publication en cours aujourd’hui (16 h)' : `Prévu à 16 h`;
+  const when = r.status === 'done' ? `Publié à ${fmtTime(r.at)}` : r.status === 'late' ? `Publication en cours aujourd’hui (${HOUR[kind]} h)` : `Prévu à ${HOUR[kind]} h`;
   return `<div class="item">${media}<div class="meta">
     <div class="tags"><span class="tag t-${kind}">${SLOT[kind]}</span><span class="tag ${st[0]}">${st[1]}</span></div>
     ${ep ? `<div class="ep">${esc(ep)}</div>` : ''}<div class="ttl">${esc(title)}</div>
@@ -287,7 +288,7 @@ function render() {
   $('out').innerHTML =
     `<div class="sec">À venir</div>${up.length ? block(up) : '<p class="empty">Rien de programmé pour l’instant.</p>'}` +
     `<div class="sec">Déjà publié</div>${past.length ? block(past) : '<p class="empty">Aucune publication.</p>'}` +
-    (held.length && FILTER !== 'reel' ? `<div class="sec">Mis de côté</div><div class="items">${held.map((p) => card({ p, kind: kindOf(p), status: 'next' }).replace('Programmé', 'En attente').replace('Prévu à 16 h', 'Hors file, en attente de votre feu vert')).join('')}</div>` : '');
+    (held.length && FILTER !== 'reel' ? `<div class="sec">Mis de côté</div><div class="items">${held.map((p) => card({ p, kind: kindOf(p), status: 'next' }).replace('Programmé', 'En attente').replace(/Prévu à \d+ h/, 'Hors file, en attente de votre feu vert')).join('')}</div>` : '');
   $('foot').textContent = 'Mis à jour le ' + new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Dakar', dateStyle: 'long', timeStyle: 'short' }) + ' (heure du Sénégal).';
 }
 
@@ -345,7 +346,7 @@ $('out').addEventListener('click', async (e) => {
     const kind = (DATA.posts.find((p) => p.id === z.dataset.id) || {}).type === 'reel' ? 'reel' : 'post';
     z.innerHTML = `<div class="edit"><div class="row"><input type="date" value="${z.dataset.day}" min="${build(DATA).nextStart[kind]}">
       <button class="btn" data-a="ok">Enregistrer</button><button class="btn ghost" data-a="no">Annuler</button></div>
-      <small>Publication à 16 h ce jour-là. Si un${kind === 'reel' ? '' : 'e'} autre ${SLOT[kind].toLowerCase()} y est déjà prévu${kind === 'reel' ? '' : 'e'}, les deux échangent leurs dates.</small></div>`;
+      <small>Publication à ${HOUR[kind]} h ce jour-là. Si un${kind === 'reel' ? '' : 'e'} autre ${SLOT[kind].toLowerCase()} y est déjà prévu${kind === 'reel' ? '' : 'e'}, les deux échangent leurs dates.</small></div>`;
     return;
   }
   const a = e.target.closest('[data-a]'); if (!a) return;
