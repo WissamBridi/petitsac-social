@@ -136,7 +136,7 @@ def post_comment(media_id, message):
 # "none" = pas de son ajouté. Volumes par défaut : notre voix devant, la tendance en fond.
 AUDIO_VER = VER if VER >= "v22.0" else "v22.0"
 GENERIC_SOUND = re.compile(r"^(audio d.origine|original audio|son original)$", re.I)
-VOL = {"music_bed": 18, "no_bed": 30}   # notre Reel a déjà sa musique (bed) / voix + effets seuls (sans_musique)
+VOL = {"music_bed": 18, "no_bed": 30, "photo": 100}   # notre Reel a déjà sa musique (bed) / voix + effets seuls (sans_musique) / Reel photo sans voix (photo_reel)
 
 
 def trending_audio(recent_ids):
@@ -158,7 +158,7 @@ def audio_config(post, recent_ids):
     if want == "none": return None
     a = want if isinstance(want, dict) else trending_audio(recent_ids)
     if not a: return None
-    vol = a.get("audio_volume") or VOL["no_bed" if post.get("sans_musique") else "music_bed"]
+    vol = a.get("audio_volume") or VOL["photo" if post.get("photo_reel") else "no_bed" if post.get("sans_musique") else "music_bed"]
     return {"id": a["id"], "title": a.get("title", ""), "artist": a.get("artist", ""),
             "conf": {"audio_id": a["id"], "audio_volume": int(vol), "video_volume": int(a.get("video_volume") or 100)}}
 
