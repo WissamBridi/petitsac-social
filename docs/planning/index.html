@@ -163,7 +163,7 @@ function titles(p) {
   const lines = (p.caption || '').split('\n').map((l) => l.trim()).filter(Boolean);
   let ep = '';
   if (/^Le Déclic/.test(lines[0] || '')) ep = lines.shift();
-  return { ep, title: (lines[0] || p.id).replace(/\s*✦\s*$/, '') };
+  return { ep, title: (lines[0] || p.id).replace(/\s*✦\s*$/, '').replace(/ ([?!:;»])/g, '\u202f$1').replace(/« /g, '«\u202f') };
 }
 
 // Modification : clé GitHub (Contents read/write sur ce seul dépôt) gardée dans ce navigateur uniquement
@@ -171,7 +171,7 @@ const API = 'https://api.github.com/repos/WissamBridi/petitsac-social/contents/c
 const KEY = 'ps-planning-token';
 const store = { get: () => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } },
   set: (v) => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch {} } };
-let TOKEN = store.get(), EDIT = false, SHA = null;
+let TOKEN = store.get(), EDIT = !!store.get(), SHA = null, PENDING = null;
 const unb64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, '')), (c) => c.charCodeAt(0)));
 const b64 = (s) => { const u = new TextEncoder().encode(s); let o = ''; for (let i = 0; i < u.length; i += 0x8000) o += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(o); };
 const gh = (url, opt = {}) => fetch(url, { ...opt, cache: 'no-store', headers: { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json', ...(opt.headers || {}) } });
@@ -182,13 +182,16 @@ function toast(msg, bad) {
 }
 
 async function load() {
-  if (TOKEN) {
-    // Avec la clé : lecture par l'API (raw.githubusercontent garde un cache de quelques minutes après une modification)
-    const get = async (f) => { const r = await gh(API + f + '?ref=main'); if (!r.ok) throw new Error(f + ' : ' + r.status); const j = await r.json(); if (f === 'posts.json') SHA = j.sha; return JSON.parse(unb64(j.content)); };
-    try {
-      const [posts, pub, hold] = await Promise.all([get('posts.json'), get('published.json'), get('hold.json').catch(() => [])]);
-      return { posts, pub, hold };
-    } catch (e) { if (/ 401$/.test(e.message)) { TOKEN = ''; store.set(''); EDIT = false; syncEdit(); toast('Clé GitHub refusée ou expirée : réactivez la modification.', true); } else throw e; }
+  // Lecture par l'API GitHub : raw.githubusercontent garde un cache de 5 min après chaque modification
+  const hdr = { Accept: 'application/vnd.github+json', ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}) };
+  const api = async (f) => { const r = await fetch(API + f + '?ref=main&t=' + Date.now(), { cache: 'no-store', headers: hdr });
+    if (!r.ok) throw new Error(f + ' : ' + r.status); const j = await r.json(); if (f === 'posts.json') SHA = j.sha; return JSON.parse(unb64(j.content)); };
+  try {
+    const [posts, pub, hold] = await Promise.all([api('posts.json'), api('published.json'), api('hold.json').catch(() => [])]);
+    return { posts, pub, hold };
+  } catch (e) {
+    if (TOKEN && / 401$/.test(e.message)) { TOKEN = ''; store.set(''); EDIT = false; syncEdit(); toast('Clé GitHub refusée ou expirée : réactivez la modification.', true); return load(); }
+    if (TOKEN && EDIT) throw e;   // en modification, jamais de données en cache
   }
   const bust = '?t=' + Date.now();
   const get = (f) => fetch(RAW + f + bust, { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(f + ' : ' + r.status); return r.json(); });
@@ -251,7 +254,7 @@ function card(r) {
     ${ep ? `<div class="ep">${esc(ep)}</div>` : ''}<div class="ttl">${esc(title)}</div>
     <div class="when">${when}</div>
     ${kind === 'reel' ? `<div class="snd">♪ ${esc(sound(r))}</div>` : ''}
-    ${EDIT && r.status !== 'done' && r.day ? `<div class="mvz" data-id="${esc(p.id)}" data-day="${r.day}"><button class="mv">Changer la date</button></div>` : ''}
+    ${r.status !== 'done' && r.day ? `<div class="mvz" data-id="${esc(p.id)}" data-day="${r.day}"><button class="mv">Changer la date</button></div>` : ''}
     ${r.link ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">Voir sur Instagram ↗</a>` : ''}
     ${p.caption ? `<details><summary>Légende</summary><p>${esc(p.caption)}</p></details>` : ''}
   </div></div>`;
@@ -336,13 +339,16 @@ $('tokOk').addEventListener('click', async () => {
   try {
     const r = await fetch(API + 'posts.json?ref=main', { cache: 'no-store', headers: { Authorization: 'Bearer ' + v, Accept: 'application/vnd.github+json' } });
     if (!r.ok) throw new Error(r.status === 401 ? 'clé invalide' : 'accès refusé au dépôt (' + r.status + ')');
-    TOKEN = v; store.set(v); EDIT = true; syncEdit(); $('tokDlg').close(); toast('Modification activée sur ce navigateur.'); refresh();
+    TOKEN = v; store.set(v); EDIT = true; syncEdit(); $('tokDlg').close(); toast('Modification activée sur ce navigateur.'); await refresh();
+    if (PENDING) { const b = document.querySelector(`.mvz[data-id="${PENDING}"] .mv`); PENDING = null; b && b.click(); }
   } catch (e) { toast('Impossible d’activer : ' + e.message, true); }
   finally { $('tokOk').disabled = false; }
 });
 $('out').addEventListener('click', async (e) => {
   const z = e.target.closest('.mvz'); if (!z) return;
   if (e.target.closest('.mv')) {
+    if (!TOKEN) { PENDING = z.dataset.id; $('tokIn').value = ''; $('tokDlg').showModal(); return; }
+    if (!EDIT) { EDIT = true; syncEdit(); }
     const kind = (DATA.posts.find((p) => p.id === z.dataset.id) || {}).type === 'reel' ? 'reel' : 'post';
     z.innerHTML = `<div class="edit"><div class="row"><input type="date" value="${z.dataset.day}" min="${build(DATA).nextStart[kind]}">
       <button class="btn" data-a="ok">Enregistrer</button><button class="btn ghost" data-a="no">Annuler</button></div>
