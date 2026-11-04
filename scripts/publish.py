@@ -112,9 +112,39 @@ def create_image_container(img_url, caption=None, carousel_item=False, user_tags
     return r.get("id")
 
 
-def publish_container(cid):
+def caption_key(text):
+    """Empreinte d'une légende : ses 100 premiers caractères, espaces normalisés. Identifie un contenu sur le fil."""
+    return re.sub(r"\s+", " ", text or "").strip()[:100]
+
+
+def find_on_instagram(post, limit=50):
+    """Ce contenu (même légende) est-il déjà sur le compte, quel que soit le jour ?
+    Renvoie le média trouvé, None s'il n'y est pas, False si le fil est illisible."""
+    key = caption_key(post.get("caption"))
+    if not key: return None
+    r = api("GET", IG + "/media", {"fields": "id,timestamp,permalink,caption", "limit": str(limit), "access_token": TOKEN})
+    if "error" in r: log("(info) lecture du fil impossible : %s" % r["error"]); return False
+    for m in r.get("data", []):
+        if caption_key(m.get("caption")) == key: return m
+    return None
+
+
+def publish_container(cid, post=None):
     r = api("POST", IG + "/media_publish", {"creation_id": cid, "access_token": TOKEN})
-    if "error" in r: log("echec publication: %s" % r["error"]); return None
+    if "error" in r:
+        log("echec publication: %s" % r["error"])
+        # Incident du 02/11 : Instagram répond « erreur inattendue » alors que le média EST publié.
+        # Le croire en échec le laissait hors du journal, et il était republié le lendemain. On vérifie.
+        st = api("GET", cid, {"fields": "status_code", "access_token": TOKEN}).get("status_code")
+        for _ in range(6 if post else 0):
+            time.sleep(10)
+            m = find_on_instagram(post)
+            if m:
+                log("Malgre l'erreur, le media est en ligne (container %s) : on le journalise." % st)
+                return m["id"], m.get("permalink", "")
+        if st == "PUBLISHED":
+            log("ALERTE: container PUBLISHED mais media introuvable sur le fil ; verifier le compte.")
+        return None
     mid = r.get("id")
     link = api("GET", mid, {"fields": "permalink", "access_token": TOKEN})
     return mid, link.get("permalink", "")
@@ -184,7 +214,7 @@ def publish_reel(post):
     if not wait_ready(cid, tries=72, pause=5): log("ECHEC: la video n'a pas ete traitee a temps"); return None
     if DRY:
         log("DRY_RUN: Reel pret a publier, non envoye. creation_id=%s" % cid); return "dry"
-    res = publish_container(cid)
+    res = publish_container(cid, post)
     if not res: return None
     mid, link = res
     log("PUBLIE (Reel) media_id=%s %s" % (mid, link))
@@ -215,7 +245,7 @@ def publish_post(post):
         if not wait_ready(cid): return None
     if DRY:
         log("DRY_RUN: pret a publier, non envoye. creation_id=%s" % cid); return "dry"
-    res = publish_container(cid)
+    res = publish_container(cid, post)
     if not res: return None
     mid, link = res
     log("PUBLIE media_id=%s %s" % (mid, link))
@@ -281,7 +311,23 @@ def main():
             else: log("Deja en ligne aujourd'hui sur Instagram (%s, file %s), rien a faire." % (live, KIND)); return
     if DRY:
         log("(info) permission commentaire du token : %s" % ("OUI" if "instagram_manage_comments" in token_scopes() else "NON"))
-    post = pick(posts, done)
+    # Garde-fou anti-doublon, indépendant du journal et du jour : un contenu dont la légende est déjà
+    # sur le fil n'est jamais republié. Il est journalisé (rattrapage) et la file passe au suivant.
+    for _ in range(5):
+        post = pick(posts, done)
+        if not post: break
+        live = find_on_instagram(post)
+        if live is False:
+            log("ECHEC: fil Instagram illisible, impossible d'exclure un doublon ; on reessaiera au prochain creneau."); sys.exit(1)
+        if not live: break
+        when = datetime.datetime.strptime(live["timestamp"], "%Y-%m-%dT%H:%M:%S%z").astimezone(datetime.timezone.utc)
+        log("DOUBLON EVITE : '%s' est deja en ligne depuis le %s (%s) ; journalise sans republier." % (post["id"], when.strftime("%d/%m %H:%M"), live.get("permalink")))
+        if DRY:
+            log("(info) DRY_RUN : journal non modifie."); return
+        published.append({"id": post["id"], "kind": kind_of(post), "published_at": when.isoformat(), "permalink": live.get("permalink", ""), "rattrape": True})
+        save(PUBLISHED, published); done.add(post["id"])
+        if when.date().isoformat() == today and not FORCE_ID: return   # le créneau du jour est déjà pris
+        post = None
     if not post:
         log("Rien a publier aujourd'hui."); return
     log("Publication du post '%s' (%s)" % (post.get("id"), "Reel" if post.get("type") == "reel" else "%d image(s)" % len(post.get("images", []))))
