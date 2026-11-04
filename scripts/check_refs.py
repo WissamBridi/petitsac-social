@@ -67,8 +67,29 @@ def main():
           problems += len(issues)
           print(("✖ " if issues else "✔ ") + "%-24s liens:%d comptes:%d %s" % (pid, len(urls), len(handles), os.path.basename(f)))
           for i in issues: print("   - " + i)
+  problems += check_duplicates()
   print("\nTotal problèmes :", problems)
   sys.exit(1 if problems else 0)
+
+def check_duplicates():
+  """Un contenu ne doit exister qu'une fois dans la file : même id, même début de légende (l'empreinte
+  anti-doublon de publish.py) ou même fichier = doublon, ou garde-fou qui bloque le second à tort."""
+  seen = {}; n = 0
+  pub = os.path.join(ROOT, "content", "published.json")
+  done = {e["id"] for e in json.load(open(pub, encoding="utf-8"))} if os.path.exists(pub) else set()
+  for f in FILES:
+      if not os.path.exists(f): continue
+      for post in json.load(open(f, encoding="utf-8")):
+          keys = [("id", post.get("id")), ("légende", re.sub(r"\s+", " ", post.get("caption") or "").strip()[:100])]
+          keys += [("fichier", m) for m in [post.get("video")] + list(post.get("images") or []) if m]
+          for kind, k in keys:
+              if not k: continue
+              if (kind, k) in seen and {seen[(kind, k)], post.get("id")} <= done: continue   # historique (variante remplacée)
+              if (kind, k) in seen:
+                  n += 1; print("✖ DOUBLON (%s) : %s et %s" % (kind, seen[(kind, k)], post.get("id")))
+              else: seen[(kind, k)] = post.get("id")
+  if not n: print("✔ aucun doublon (id, légende, fichier)")
+  return n
 
 if __name__ == "__main__":
     main()
