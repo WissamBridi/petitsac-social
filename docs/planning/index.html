@@ -71,6 +71,15 @@ dialog video{width:100%;max-height:86vh;border-radius:16px;display:block;backgro
 dialog img{width:100%;border-radius:16px;display:block}
 dialog .x{position:absolute;top:10px;right:10px;z-index:2;background:#fff;border:0;border-radius:999px;width:36px;height:36px;font:700 18px Inter;cursor:pointer}
 dialog form{position:relative}
+.links{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:22px}
+.links h2{font:italic 400 28px/1 'Instrument Serif',serif;margin-bottom:12px}
+.links h2 em{color:var(--terra)}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.lnk{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;text-decoration:none;color:var(--ink);background:var(--bg)}
+.lnk:hover{border-color:var(--terra)}
+.lnk b{font:600 15px Inter}
+.lnk span{color:var(--soft);font-size:13px}
+.lnk i{font-style:normal;color:var(--terra);font:600 12px Inter;overflow-wrap:anywhere}
 footer{margin-top:40px;color:var(--soft);font-size:12px}
 @media (max-width:720px){
   .kpis{grid-template-columns:repeat(2,1fr)}
@@ -92,6 +101,10 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
     <button class="refresh" id="refresh">Actualiser</button>
   </header>
 
+  <section class="links" aria-labelledby="lc">
+    <h2 id="lc">Liens <em>clients</em></h2>
+    <div class="lgrid" id="clients"></div>
+  </section>
   <div class="kpis" id="kpis"></div>
   <div class="alert" id="alert"></div>
 
@@ -109,6 +122,13 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
 
 
 <script>
+// Liens vers les webapps des clients de Petit Sac : ajouter une ligne par nouvelle webapp.
+const CLIENTS = [
+  { name: 'Party Factory', what: 'Webapp de Fatima : visuels et validations', url: 'https://party-factory-app.web.app/' },
+];
+document.getElementById('clients').innerHTML = CLIENTS.map((c) => `<a class="lnk" href="${c.url}" target="_blank" rel="noopener">
+  <b>${c.name}</b><span>${c.what}</span><i>${c.url.replace(/^https?:\/\//, '').replace(/\/$/, '')} ↗</i></a>`).join('');
+
 // Sources : la file (posts.json), le journal (published.json) et la mise de côté (hold.json) du dépôt, lus en direct
 const RAW = 'https://raw.githubusercontent.com/WissamBridi/petitsac-social/main/content/';
 const MEDIA = '../images/';
