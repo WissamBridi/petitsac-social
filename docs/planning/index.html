@@ -71,6 +71,14 @@ dialog video{width:100%;max-height:86vh;border-radius:16px;display:block;backgro
 dialog img{width:100%;border-radius:16px;display:block}
 dialog .x{position:absolute;top:10px;right:10px;z-index:2;background:#fff;border:0;border-radius:999px;width:36px;height:36px;font:700 18px Inter;cursor:pointer}
 dialog form{position:relative}
+.mix{background:var(--card);border-radius:16px;padding:12px 14px;margin-top:10px;display:flex;flex-direction:column;gap:8px}
+dialog{max-height:100dvh;overflow:auto}
+dialog video#pv{max-height:calc(100dvh - 230px);width:auto;max-width:100%;margin:0 auto;background:transparent}
+.mixb{display:flex;flex-wrap:wrap;gap:6px}
+.mixb button{font:600 13px Inter;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;cursor:pointer}
+.mixb button.on{background:var(--terra);border-color:var(--terra);color:#fff}
+.mixn{font-size:13px;color:var(--soft);line-height:1.4;overflow-wrap:anywhere}
+.mixn b{color:var(--ink)}
 .links{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:22px}
 .links h2{font:italic 400 28px/1 'Instrument Serif',serif;margin-bottom:12px}
 .links h2 em{color:var(--terra)}
@@ -206,18 +214,72 @@ function build({ posts, pub, hold }) {
   return { rows, today, nextStart, held: posts.filter((p) => held.has(p.id)) };
 }
 
-// Son Instagram : celui posé à la publication (journal), sinon celui prévu
+// Son Instagram : celui posé à la publication (journal), sinon le son tendance pressenti (content/sons.json)
+let SONS = { items: {} };
+const loadSons = () => fetch(RAW + 'sons.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : { items: {} })).catch(() => ({ items: {} }));
+const nameOf = (a) => a.title + (a.artist ? ' · ' + a.artist : '');
 function sound(r) {
   const a = r.status === 'done' ? r.audio : r.p.audio;
-  if (a === 'none') return 'Sans son ajouté';
-  if (a && a.title) return a.title + (a.artist ? ' · ' + a.artist : '');
-  return r.status === 'done' ? 'Son d’origine du Reel' : 'Son tendance du jour, choisi à la publication';
+  if (a && a.title) return (r.status === 'done' ? '' : 'Son choisi : ') + nameOf(a);
+  if (r.status === 'done') return 'Son d’origine du Reel';
+  const f = (SONS.items || {})[r.p.id];
+  return f ? 'Son tendance pressenti : ' + nameOf(f) : 'Notre musique d’ambiance (aucun son tendance disponible)';
+}
+
+// Lecteur du Reel avec son d'ambiance, pour se projeter : le son tendance pressenti (extrait lu chez Meta) mixé
+// sous la voix au volume de la publication, ou notre version avec musique, ou la voix seule.
+let AC = null;
+function reelPlayer(t) {
+  const p = (DATA.posts || []).find((x) => x.id === t.dataset.id) || { video: t.dataset.v };
+  const done = t.dataset.done === '1', pubA = done ? ((DATA.pub || []).find((e) => e.id === p.id) || {}).audio : null;
+  const f = done ? null : (p.audio && p.audio.preview ? p.audio : (SONS.items || {})[p.id]);
+  const vol = ((SONS.volumes || {})[p.sans_musique ? 'no_bed' : 'music_bed'] ?? (p.sans_musique ? 30 : 18)) / 100;
+  const modes = [];
+  if (f && f.preview) modes.push(['tendance', 'Son tendance']);
+  if (p.video_musique) modes.push(['ambiance', 'Notre ambiance']);
+  modes.push(['voix', 'Voix seule']);
+  $('dlgBody').innerHTML = `<video id="pv" src="${MEDIA + esc(p.video)}" poster="${MEDIA + esc(t.dataset.i)}" controls playsinline></video>
+    <div class="mix"><div class="mixb">${modes.map(([k, l]) => `<button type="button" data-m="${k}">${l}</button>`).join('')}</div><p class="mixn" id="mixn"></p></div>`;
+  const v = $('pv'), a = new Audio(); a.crossOrigin = 'anonymous'; a.preload = 'auto';
+  let mode = modes[0][0], g = null;
+  try {   // volume réglable partout (iPhone compris) : la musique passe par Web Audio
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); AC.resume();
+    g = AC.createGain(); g.gain.value = vol; AC.createMediaElementSource(a).connect(g).connect(AC.destination);
+  } catch (e) { a.volume = vol; }
+  const note = () => {
+    const m = $('mixn'); if (!m) return;
+    m.innerHTML = mode === 'tendance' ? `<b>♪ ${esc(nameOf(f))}</b><br>Son tendance pressenti, au volume de la publication. Repris à ${HOUR.reel} h s’il est encore tendance ce jour-là.`
+      : mode === 'ambiance' ? `<b>♪ Notre musique d’ambiance</b><br>Version de secours, si aucun son tendance n’est disponible.`
+      : done && pubA ? `<b>♪ Sur Instagram : ${esc(nameOf(pubA))}</b><br>Ici, la voix et les effets seuls. Le son posé s’écoute sur Instagram.` : 'La voix et les effets seuls, sans musique.';
+    document.querySelectorAll('.mixb button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
+  };
+  const sync = () => { if (mode !== 'tendance') return; const d = a.duration || 0; const want = d ? v.currentTime % d : v.currentTime;
+    if (Math.abs(a.currentTime - want) > 0.15) a.currentTime = want; };
+  const set = (m) => {
+    mode = m; const src = MEDIA + (m === 'ambiance' ? p.video_musique : p.video);
+    if (v.src !== new URL(src, location.href).href) {   // même instant, autre version
+      const tm = v.currentTime, play = !v.paused || !v.played.length; v.src = src;
+      v.addEventListener('loadedmetadata', () => { v.currentTime = tm; if (play) v.play().catch(() => {}); }, { once: true });
+    }
+    if (m === 'tendance') { if (!a.src) a.src = f.preview; sync(); if (!v.paused) a.play().catch(() => {}); } else a.pause();
+    note();
+  };
+  v.addEventListener('play', () => { if (mode === 'tendance') { AC && AC.resume(); sync(); a.play().catch(() => {}); } });
+  v.addEventListener('pause', () => a.pause());
+  v.addEventListener('ended', () => a.pause());
+  v.addEventListener('seeked', sync);
+  v.addEventListener('timeupdate', sync);
+  v.addEventListener('volumechange', () => { a.muted = v.muted; if (g) g.gain.value = vol * v.volume; else a.volume = vol * v.volume; });
+  $('dlgBody').querySelector('.mixb').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) set(b.dataset.m); });
+  $('dlg').addEventListener('close', () => { a.pause(); a.removeAttribute('src'); }, { once: true });
+  if (mode === 'tendance') { a.src = f.preview; a.play().catch(() => {}); }   // lancé dans le geste du clic : déverrouille l'audio (iPhone)
+  set(mode); v.play().catch(() => {});
 }
 
 function card(r) {
   const { p, kind } = r, { ep, title } = titles(p);
   const img = kind === 'reel' ? p.cover : (p.images || [])[0];
-  const media = img ? `<button class="thumb ${kind}" data-k="${kind}" data-v="${esc(p.video || '')}" data-i="${esc(img)}" aria-label="Voir">
+  const media = img ? `<button class="thumb ${kind}" data-k="${kind}" data-v="${esc(p.video || '')}" data-id="${esc(p.id)}" data-done="${r.status === 'done' ? 1 : ''}" data-i="${esc(img)}" aria-label="Voir">
       <img loading="lazy" src="${MEDIA + esc(img)}" alt="">${kind === 'reel' ? '<span class="play"></span>' : ''}</button>` : '';
   const st = { done: ['s-done', 'Publié'], next: ['s-next', 'Programmé'], late: ['s-late', 'En cours'] }[r.status];
   const when = r.status === 'done' ? `Publié à ${fmtTime(r.at)}` : r.status === 'late' ? `Publication en cours aujourd’hui (${HOUR[kind]} h)` : `Prévu à ${HOUR[kind]} h`;
@@ -267,7 +329,7 @@ function render() {
 }
 
 async function refresh() {
-  try { DATA = await load(); render(); }
+  try { [DATA, SONS] = await Promise.all([load(), loadSons()]); render(); }
   catch (e) { $('out').innerHTML = `<div class="err">Impossible de lire le planning (${esc(e.message)}). Réessayez dans un instant.</div>`; }
 }
 
@@ -278,9 +340,8 @@ $('filters').addEventListener('click', (e) => {
 });
 $('out').addEventListener('click', (e) => {
   const t = e.target.closest('.thumb'); if (!t) return;
-  $('dlgBody').innerHTML = t.dataset.k === 'reel' && t.dataset.v
-    ? `<video src="${MEDIA + t.dataset.v}" poster="${MEDIA + t.dataset.i}" controls autoplay playsinline></video>`
-    : `<img src="${MEDIA + t.dataset.i}" alt="">`;
+  if (t.dataset.k === 'reel' && t.dataset.v) { reelPlayer(t); $('dlg').showModal(); return; }
+  $('dlgBody').innerHTML = `<img src="${MEDIA + t.dataset.i}" alt="">`;
   $('dlg').showModal();
 });
 $('dlg').addEventListener('close', () => ($('dlgBody').innerHTML = ''));
