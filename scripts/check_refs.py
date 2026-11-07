@@ -68,6 +68,7 @@ def main():
           print(("✖ " if issues else "✔ ") + "%-24s liens:%d comptes:%d %s" % (pid, len(urls), len(handles), os.path.basename(f)))
           for i in issues: print("   - " + i)
   problems += check_duplicates()
+  problems += check_music()
   print("\nTotal problèmes :", problems)
   sys.exit(1 if problems else 0)
 
@@ -89,6 +90,30 @@ def check_duplicates():
                   n += 1; print("✖ DOUBLON (%s) : %s et %s" % (kind, seen[(kind, k)], post.get("id")))
               else: seen[(kind, k)] = post.get("id")
   if not n: print("✔ aucun doublon (id, légende, fichier)")
+  return n
+
+def check_music():
+  """Musique d'ambiance tendance dans CHAQUE Reel (règle de Wissam, 07/11) : publish.py pose un son tendance ;
+  s'il échoue, il publie `video_musique` (notre version avec musique). Un Reel mixé sans musique doit donc avoir
+  cette version, présente dans docs/images/ et servie par Pages ; un Reel `"audio": "none"` est interdit."""
+  n = 0
+  pub = os.path.join(ROOT, "content", "published.json")
+  done = {e["id"] for e in json.load(open(pub, encoding="utf-8"))} if os.path.exists(pub) else set()
+  for f in FILES:
+      if not os.path.exists(f): continue
+      for post in json.load(open(f, encoding="utf-8")):
+          if post.get("type") != "reel" or post.get("id") in done: continue
+          err = None
+          if post.get("audio") == "none": err = '"audio": "none" (aucune musique)'
+          elif post.get("sans_musique") and not post.get("video_musique"): err = "mixé sans musique et sans version de secours video_musique"
+          elif post.get("video_musique"):
+              loc = os.path.join(ROOT, "docs", "images", post["video_musique"])
+              if not os.path.exists(loc): err = "video_musique absente : " + post["video_musique"]
+              elif BASE.strip("/"):
+                  e2 = check_url(BASE + post["video_musique"])
+                  if e2: err = "video_musique non servie (%s)" % e2
+          if err: n += 1; print("✖ MUSIQUE %s : %s" % (post.get("id"), err))
+  if not n: print("✔ musique garantie sur chaque Reel en file")
   return n
 
 if __name__ == "__main__":

@@ -169,16 +169,23 @@ GENERIC_SOUND = re.compile(r"^(audio d.origine|original audio|son original)$", r
 VOL = {"music_bed": 18, "no_bed": 30, "photo": 100}   # notre Reel a déjà sa musique (bed) / voix + effets seuls (sans_musique) / Reel photo sans voix (photo_reel)
 
 
-def trending_audio(recent_ids):
-    """Le son tendance du moment : d'abord les sons Reels populaires titrés (souvent des morceaux du moment),
-    sinon la musique tendance de Meta. Jamais un son déjà utilisé sur nos derniers Reels."""
+# Un titre de chanson (remix, mashup « A x B », reprise, « Titre - Artiste »…) : jamais un son parlé (conseil, sketch, voix off),
+# qui couvrirait notre narration.
+SONG = re.compile(r"(\bremix\b|\bmix\b|\bcover\b|\bversion\b|\bedit\b|sped up|slowed|instrumental|\bfeat\b|\bft\.|\s[x×]\s|\s-\s|\sby\s|\bsong\b)", re.I)
+
+
+def trending_audio(recent_ids, min_ms=25000):
+    """Le son ultra tendance du moment : les sons Reels les plus utilisés (liste « original_sound » de Meta), en ne gardant
+    que les MORCEAUX DE MUSIQUE (titre de chanson), assez longs pour couvrir le Reel et jamais déjà posés sur nos derniers Reels.
+    Repli : la musique tendance de la bibliothèque Meta. Aucun son trouvé = None (le Reel part avec sa version « video_musique »)."""
     for kind in ("original_sound", "music"):
         r = api("GET", "ig_audio", {"audio_type": kind, "user_id": IG, "access_token": TOKEN}, ver=AUDIO_VER)
         if "error" in r: log("(info) sons tendance %s indisponibles: %s" % (kind, r["error"].get("message"))); continue
         for a in r.get("audio") or []:
             t = (a.get("title") or "").strip()
             if not t or GENERIC_SOUND.match(t) or a.get("audio_id") in recent_ids: continue
-            if (a.get("duration_in_ms") or 0) < 25000: continue   # assez long pour couvrir un Reel
+            if kind == "original_sound" and not SONG.search(t): continue
+            if (a.get("duration_in_ms") or 0) < min_ms: continue   # assez long pour couvrir le Reel
             return {"id": a["audio_id"], "title": t, "artist": a.get("display_artist") or a.get("ig_username") or "", "type": kind}
     return None
 
@@ -203,10 +210,16 @@ def publish_reel(post):
     if au:
         r = api("POST", IG + "/media", dict(p, audio_configuration=json.dumps(au["conf"])), ver=AUDIO_VER)
         if "error" in r:
-            log("(info) son tendance refuse (%s) : publication sans son ajoute." % r["error"].get("message")); au = None
+            log("(info) son tendance refuse (%s)." % r["error"].get("message")); au = None
         else:
             log("Son tendance : %s%s (volume %d)" % (au["title"], " · " + au["artist"] if au["artist"] else "", au["conf"]["audio_volume"]))
-    if not au: r = api("POST", IG + "/media", p)
+    if not au:
+        if post.get("video_musique"):
+            p["video_url"] = BASE + post["video_musique"]
+            log("Pas de son tendance pose : publication de la version avec notre musique d'ambiance (%s)." % post["video_musique"])
+        elif post.get("sans_musique"):
+            log("ALERTE: Reel sans son tendance ni version musicale : il partirait sans musique ; le Reel reste en file."); return None
+        r = api("POST", IG + "/media", p)
     post["_audio"] = au
     if "error" in r: log("echec container reel: %s" % r["error"]); return None
     cid = r.get("id")
@@ -347,7 +360,7 @@ def main():
             if err: log("ECHEC: lien du commentaire invalide %s (%s) ; le post reste en file." % (u, err)); sys.exit(1)
     if post.get("references") and not re.search(r"https?://|@\w", post.get("caption", "") + " " + post.get("comment", "")) and not post.get("user_tags"):
         log("ECHEC: reference client sans lien verifiable ; le post reste en file."); sys.exit(1)
-    post["_recent_audio"] = {e["audio"]["id"] for e in published[-10:] if isinstance(e.get("audio"), dict)}
+    post["_recent_audio"] = {e["audio"]["id"] for e in published[-40:] if isinstance(e.get("audio"), dict)}   # ~3 semaines de Reels sans répéter un son
     link = publish_post(post)
     if link is None:
         log("ECHEC: le post reste en file pour le prochain run."); sys.exit(1)
