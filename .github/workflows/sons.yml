@@ -1,0 +1,39 @@
+name: Sons tendance pressentis (planning)
+
+# Écrit content/sons.json : le son tendance pressenti pour chaque Reel à venir, écoutable dans le planning.
+# Ne publie jamais rien. Les liens d'écoute de Meta sont temporaires : rafraîchis plusieurs fois par jour.
+on:
+  schedule:
+    - cron: "5 0 * * *"
+    - cron: "5 6 * * *"
+    - cron: "5 11 * * *"
+    - cron: "45 15 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ig-daily
+  cancel-in-progress: false
+
+jobs:
+  sons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Calculer les sons pressentis
+        env:
+          IG_USER_ID: "17841422677537452"
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python3 scripts/publish.py --sons
+      - name: Enregistrer
+        run: |
+          if [ -n "$(git status --porcelain content/sons.json)" ]; then
+            git config user.name "petitsac-bot"
+            git config user.email "bot@petitsac.local"
+            git add content/sons.json
+            git commit -q -m "chore: sons pressentis $(date -u +%Y-%m-%dT%H:%M)"
+            git pull --rebase -q origin main || true
+            git push
+          fi

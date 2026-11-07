@@ -55,6 +55,8 @@ jobs:
         run: python3 scripts/publish.py
 
       - name: Journaliser le Reel publié
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         if: ${{ always() && github.event_name != 'push' && github.event.inputs.dry_run != '1' }}
         run: |
           if [ -n "$(git status --porcelain content/published.json)" ]; then
@@ -62,6 +64,8 @@ jobs:
             git config user.email "bot@petitsac.local"
             git add content/published.json
             git commit -m "chore: Reel publié le $(date -u +%Y-%m-%d)"
+            IG_USER_ID="17841422677537452" IG_ACCESS_TOKEN="$IG_ACCESS_TOKEN" python3 scripts/publish.py --sons || true
+            if [ -n "$(git status --porcelain content/sons.json)" ]; then git add content/sons.json; git commit -q -m "chore: sons pressentis après publication"; fi
             git pull --rebase -q origin main || true
             git push
           else

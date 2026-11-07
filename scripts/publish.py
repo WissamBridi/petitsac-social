@@ -22,6 +22,7 @@ import datetime, json, os, re, sys, time, urllib.parse, urllib.request, urllib.e
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 POSTS = os.path.join(ROOT, "content", "posts.json")
 PUBLISHED = os.path.join(ROOT, "content", "published.json")
+SONS = os.path.join(ROOT, "content", "sons.json")   # sons tendance pressentis (planning)
 
 IG = os.environ.get("IG_USER_ID", "").strip()
 TOKEN = os.environ.get("IG_ACCESS_TOKEN", "").strip()
@@ -174,26 +175,63 @@ VOL = {"music_bed": 18, "no_bed": 30, "photo": 100}   # notre Reel a déjà sa m
 SONG = re.compile(r"(\bremix\b|\bmix\b|\bcover\b|\bversion\b|\bedit\b|sped up|slowed|instrumental|\bfeat\b|\bft\.|\s[x×]\s|\s-\s|\sby\s|\bsong\b)", re.I)
 
 
-def trending_audio(recent_ids, min_ms=25000):
-    """Le son ultra tendance du moment : les sons Reels les plus utilisés (liste « original_sound » de Meta), en ne gardant
-    que les MORCEAUX DE MUSIQUE (titre de chanson), assez longs pour couvrir le Reel et jamais déjà posés sur nos derniers Reels.
-    Repli : la musique tendance de la bibliothèque Meta. Aucun son trouvé = None (le Reel part avec sa version « video_musique »)."""
+def audio_candidates(recent_ids, min_ms=25000):
+    """Les sons ultra tendance du moment, du plus utilisé au moins utilisé : les sons Reels populaires (liste
+    « original_sound » de Meta) en ne gardant que les MORCEAUX DE MUSIQUE (titre de chanson), puis la musique tendance
+    de la bibliothèque Meta. Assez longs pour couvrir le Reel, jamais déjà posés sur nos derniers Reels."""
+    out, seen = [], set()
     for kind in ("original_sound", "music"):
         r = api("GET", "ig_audio", {"audio_type": kind, "user_id": IG, "access_token": TOKEN}, ver=AUDIO_VER)
         if "error" in r: log("(info) sons tendance %s indisponibles: %s" % (kind, r["error"].get("message"))); continue
         for a in r.get("audio") or []:
-            t = (a.get("title") or "").strip()
-            if not t or GENERIC_SOUND.match(t) or a.get("audio_id") in recent_ids: continue
+            t = (a.get("title") or "").strip(); i = a.get("audio_id")
+            if not t or not i or i in seen or GENERIC_SOUND.match(t) or i in recent_ids: continue
             if kind == "original_sound" and not SONG.search(t): continue
-            if (a.get("duration_in_ms") or 0) < min_ms: continue   # assez long pour couvrir le Reel
-            return {"id": a["audio_id"], "title": t, "artist": a.get("display_artist") or a.get("ig_username") or "", "type": kind}
-    return None
+            if (a.get("duration_in_ms") or 0) < min_ms: continue
+            seen.add(i)
+            out.append({"id": i, "title": t, "artist": a.get("display_artist") or a.get("ig_username") or "", "type": kind,
+                        "preview": a.get("download_url") or "", "duration_ms": a.get("duration_in_ms") or 0})
+    return out
+
+
+def trending_audio(recent_ids, min_ms=25000, prefer=None):
+    """Le son tendance à poser. `prefer` = le son pressenti dans content/sons.json (celui que Wissam a écouté dans
+    le planning) : repris s'il est toujours dans les tendances du jour, sinon le plus tendance du moment.
+    Aucun son = None (le Reel part avec sa version « video_musique »)."""
+    c = audio_candidates(recent_ids, min_ms)
+    for a in c:
+        if prefer and a["id"] == prefer: return a
+    return c[0] if c else None
+
+
+def forecast_sounds(posts, published):
+    """content/sons.json : le son tendance pressenti pour chaque Reel à venir, dans l'ordre de la file, pour l'écouter
+    dans le planning. Les extraits sont lus sur les serveurs de Meta (liens temporaires, rafraîchis plusieurs fois par jour) :
+    aucune musique n'est copiée dans le dépôt."""
+    done = {e["id"] for e in published}
+    recent = {e["audio"]["id"] for e in published[-40:] if isinstance(e.get("audio"), dict)}
+    reels = [p for p in posts if p.get("type") == "reel" and p["id"] not in done]
+    reels = sorted([p for p in reels if p.get("date")], key=lambda p: p["date"]) + [p for p in reels if not p.get("date")]
+    cands = audio_candidates(recent); used = set(); items = {}
+    for p in reels:
+        want = p.get("audio", "auto")
+        if isinstance(want, dict):
+            items[p["id"]] = dict(want, fixed=True); continue
+        a = next((c for c in cands if c["id"] not in used), None)
+        if a: used.add(a["id"])
+        items[p["id"]] = a   # None = la version avec notre musique d'ambiance
+    vol = {"no_bed": VOL["no_bed"], "music_bed": VOL["music_bed"]}
+    out = {"generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "volumes": vol, "items": items}
+    save(SONS, out)
+    log("Sons pressentis : %d Reels, %d avec un son tendance." % (len(items), sum(1 for v in items.values() if v)))
+    return out
 
 
 def audio_config(post, recent_ids):
     want = post.get("audio", "auto")
     if want == "none": return None
-    a = want if isinstance(want, dict) else trending_audio(recent_ids)
+    prefer = ((load(SONS, {}).get("items") or {}).get(post.get("id")) or {}).get("id")
+    a = want if isinstance(want, dict) else trending_audio(recent_ids, prefer=prefer)
     if not a: return None
     vol = a.get("audio_volume") or VOL["photo" if post.get("photo_reel") else "no_bed" if post.get("sans_musique") else "music_bed"]
     return {"id": a["id"], "title": a.get("title", ""), "artist": a.get("artist", ""),
@@ -298,6 +336,9 @@ def pick(posts, done_ids):
 
 
 def main():
+    if "--sons" in sys.argv:   # prévision des sons pour le planning, sans rien publier
+        if not (IG and TOKEN): log("variables manquantes: IG_USER_ID / IG_ACCESS_TOKEN"); sys.exit(2)
+        forecast_sounds(load(POSTS, []), load(PUBLISHED, [])); return
     miss = [k for k, v in {"IG_USER_ID": IG, "IG_ACCESS_TOKEN": TOKEN, "BASE_URL": BASE.strip("/")}.items() if not v]
     if miss: log("variables manquantes: %s" % miss); sys.exit(2)
     posts = load(POSTS, [])
