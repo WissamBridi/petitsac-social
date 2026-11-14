@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-11-14T06:04:37.755599+00:00",
+  "generated_at": "2026-11-14T13:14:40.856724+00:00",
   "volumes": {
     "no_bed": 30,
     "music_bed": 18
   },
   "items": {
     "reel-31-aminata": {
-      "id": "488881259966499",
-      "title": "3D Love Story",
-      "artist": "Sugartapes",
+      "id": "1540826030450846",
+      "title": "Curious Mind",
+      "artist": "LAVLO",
       "type": "music",
-      "preview": "https://video-iad3-1.xx.fbcdn.net/o1/v/t2/f2/m69/AQMIdgWubaEiu-6jT48avUzk9UagPjg10rqBYK0ZnY8rV7eiGSPuzgv_Y6XpqqlxS1fFei10VKmLzElQ7MjvoqwY.mp4?strext=1&_nc_cat=1&_nc_sid=b66105&_nc_ht=video-iad3-1.xx.fbcdn.net&_nc_ohc=qPFRcOL7ryIQ7kNvwGeeSVs&efg=eyJ2ZW5jb2RlX3RhZyI6Inhwdl9wcm9ncmVzc2l2ZS5WSV9VU0VDQVNFX1BST0RVQ1RfVFlQRS4uQzIuMC5kYXNoX2xuX2hlYWFjX3ZicjNfbXB4X2F1ZGlvIiwieHB2X2Fzc2V0X2lkIjoyMTQxOTg1OTA2MTM3NjcyLCJhc3NldF9hZ2VfZGF5cyI6MTQxMCwidmlfdXNlY2FzZV9pZCI6MTA1NjgsImR1cmF0aW9uX3MiOjEyNywidXJsZ2VuX3NvdXJjZSI6Ind3dyJ9&ccb=17-1&vs=92aae0acd9fd887a&_nc_vs=HBkcFQIYOnBhc3N0aHJvdWdoX2V2ZXJzdG9yZS9HR2tlcHg2a0RTbUN5S1lFQU9yeVNZRlMtMGtXYm1FeUFBQUYVAgLIARIAKAAYABsDiAd1c2Vfb2lsATEScHJvZ3Jlc3NpdmVfcmVjaXBlATESY29weV9zYW1wbGVfZ3JvdXBzATEVAAAmkOnk0P6HzgcVAigCQzIsF0Bf0gxJul41GBxkYXNoX2xuX2hlYWFjX3ZicjNfbXB4X2F1ZGlvEQB1AGWQpQEA&edm=AOP_XFkEAAAA&_nc_zt=28&oh=00_AQTmkwVzeSepldrYhBLzUHIbPoXTEw8AioIo7dxtIQJhQA&oe=6AFDD54E",
-      "duration_ms": 127282
+      "preview": "https://video-iad3-1.xx.fbcdn.net/o1/v/t2/f2/m69/AQPQHH5o-kaki2TzCgzUGXuuAOfm6T-WqFCE1Hm8iqivPnKTPKrR2OfAFpVTsKPkr7PdMy-8ZqsDHUnprPDdBwSi.mp4?strext=1&_nc_cat=1&_nc_sid=b66105&_nc_ht=video-iad3-1.xx.fbcdn.net&_nc_ohc=yTcg6kuCqPMQ7kNvwEl4PHc&efg=eyJ2ZW5jb2RlX3RhZyI6Inhwdl9wcm9ncmVzc2l2ZS5WSV9VU0VDQVNFX1BST0RVQ1RfVFlQRS4uQzMuMC5kYXNoX2xuX2hlYWFjX3ZicjNfbXB4X2F1ZGlvIiwieHB2X2Fzc2V0X2lkIjoyNTE2NjE5MjU1NDcwNjU3LCJhc3NldF9hZ2VfZGF5cyI6ODYsInZpX3VzZWNhc2VfaWQiOjEwNTY4LCJkdXJhdGlvbl9zIjo1NiwidXJsZ2VuX3NvdXJjZSI6Ind3dyJ9&ccb=17-1&vs=3da92d9e473be2cb&_nc_vs=HBkcFQIYOnBhc3N0aHJvdWdoX2V2ZXJzdG9yZS9HQjhoWFM1elVINFQ1VkVHQUw1LVV4YlFTMjljYm1FeUFBQUYVAgLIARIAKAAYABsDiAd1c2Vfb2lsATEScHJvZ3Jlc3NpdmVfcmVjaXBlATESY29weV9zYW1wbGVfZ3JvdXBzATEVAAAmgumOzMK2-AgVAigCQzMsF0BMX987ZFodGBxkYXNoX2xuX2hlYWFjX3ZicjNfbXB4X2F1ZGlvEQB1AGWQpQEA&edm=AOP_XFkEAAAA&_nc_zt=28&oh=00_AQSNa3GhgqezxnhV1QERSrwJg5528GLQYa6ZdeIK13WdnQ&oe=6AFE3080",
+      "duration_ms": 56749
     }
   }
 }
