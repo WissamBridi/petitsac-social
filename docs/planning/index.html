@@ -133,6 +133,7 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
 // Liens vers les webapps des clients de Petit Sac : ajouter une ligne par nouvelle webapp.
 const CLIENTS = [
   { name: 'Party Factory', what: 'Webapp de Fatima : visuels et validations', url: 'https://party-factory-app.web.app/' },
+  { name: 'Cap Résidences', what: 'Webapp d’Ibrahim : visuels et validations', url: 'https://capresidences-app.web.app/' },
 ];
 document.getElementById('clients').innerHTML = CLIENTS.map((c) => `<a class="lnk" href="${c.url}" target="_blank" rel="noopener">
   <b>${c.name}</b><span>${c.what}</span><i>${c.url.replace(/^https?:\/\//, '').replace(/\/$/, '')} ↗</i></a>`).join('');
