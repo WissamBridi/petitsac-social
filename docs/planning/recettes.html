@@ -85,7 +85,7 @@ details.cli summary{cursor:pointer;font:600 14px Inter;list-style:none}
 details.cli summary::-webkit-details-marker{display:none}
 details.cli summary::before{content:"+ ";color:var(--terra)}
 details.cli[open] summary::before{content:"− "}
-.clist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-top:14px}
+.clist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-top:14px;align-items:start}
 .ci{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px 12px;background:var(--bg)}
 .ci input{flex:1 1 100%;min-width:0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:4px 0 6px;font-weight:600}
 .ci em{margin-right:auto}
@@ -93,6 +93,12 @@ details.cli[open] summary::before{content:"− "}
 .ci em{font-style:normal;color:var(--soft);font-size:12px;white-space:nowrap}
 .ci button{font:600 12px Inter;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 9px;cursor:pointer;color:var(--ink)}
 .ci button:disabled{opacity:.35;cursor:not-allowed}
+.ci .rm:hover{border-color:var(--terra);color:var(--terra)}
+.ci .ask{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#FDEBDD;border-radius:10px;padding:8px 10px;font-size:13px;color:#6A2E10}
+.ci .ask b{flex:1 1 100%;font-weight:600}
+.ci .ask .danger{background:var(--terra);border-color:var(--terra);color:#fff}
+.lnkb{all:unset;cursor:pointer;font:600 12px Inter;color:var(--terra)}
+.lnkb:hover{text-decoration:underline}
 .login{max-width:440px;margin:40px auto}
 .login p{color:var(--soft);margin-bottom:14px}
 .hidden{display:none!important}
@@ -156,7 +162,7 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
       <h2 id="formTitle">Nouveau <em>paiement</em></h2>
       <form id="pay" class="grid" autocomplete="off">
         <div class="f c3">
-          <label for="client">Client</label>
+          <div class="row" style="justify-content:space-between"><label for="client">Client</label><button type="button" class="lnkb" id="goCli">Gérer les clients</button></div>
           <select id="client" required></select>
           <div class="newc" id="newc"><input id="newName" placeholder="Nom du nouveau client" maxlength="80"><button type="button" class="btn" id="addClient">Ajouter</button></div>
         </div>
@@ -196,10 +202,10 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
 
     <section class="card">
       <details class="cli" id="cliBox">
-        <summary>Gérer la liste des clients</summary>
+        <summary>Clients : ajouter, renommer, supprimer</summary>
         <div class="row" style="margin-top:14px;max-width:520px"><input id="newName2" placeholder="Nom du nouveau client" maxlength="80"><button class="btn" id="addClient2">Ajouter</button></div>
         <div class="clist" id="clist"></div>
-        <p class="msg" style="margin-top:10px">Renommer met aussi à jour les paiements déjà saisis. Un client qui a des paiements ne peut pas être supprimé.</p>
+        <p class="msg" style="margin-top:10px">Renommer met aussi à jour les paiements déjà saisis. Pour un client qui a des paiements, vous choisissez de garder ses paiements dans le tableau ou de les supprimer avec lui.</p>
       </details>
     </section>
   </div>
@@ -296,7 +302,7 @@ onAuthStateChanged(auth, (u) => {
 // ---------- données (temps réel) ----------
 async function start() {
   unsub.push(onSnapshot(collection(db, 'rec_clients'), (s) => { clients = s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'fr')); fillClients(); render(); }, denied));
-  unsub.push(onSnapshot(collection(db, 'rec_payments'), (s) => { pays = s.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, denied));
+  unsub.push(onSnapshot(collection(db, 'rec_payments'), (s) => { pays = s.docs.map((d) => ({ id: d.id, ...d.data() })); fillFilter(); render(); }, denied));
 }
 function denied(e) {
   show('app', false); show('loginBox', true);
@@ -305,15 +311,21 @@ function denied(e) {
 }
 
 // ---------- clients ----------
+function fillFilter() {
+  const f = $('filter').value, gone = orphans();
+  $('filter').innerHTML = '<option value="">Tous les clients</option>' + clients.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')
+    + gone.map((o) => `<option value="${o.id}">${esc(o.name)} (retiré de la liste)</option>`).join('');
+  $('filter').value = [...$('filter').options].some((o) => o.value === f) ? f : '';
+}
+function orphans() { const ids = new Set(clients.map((c) => c.id)), m = new Map(); pays.forEach((p) => { if (!ids.has(p.clientId)) m.set(p.clientId, p.clientName); }); return [...m].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'fr')); }
 function fillClients() {
-  const keep = $('client').value, f = $('filter').value;
+  const keep = $('client').value;
   $('client').innerHTML = '<option value="" disabled selected>Choisir un client</option>' + clients.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('') + '<option value="__new">+ Nouveau client…</option>';
   if (clients.some((c) => c.id === keep)) $('client').value = keep;
-  $('filter').innerHTML = '<option value="">Tous les clients</option>' + clients.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  if (clients.some((c) => c.id === f)) $('filter').value = f;
-  const used = new Set(pays.map((p) => p.clientId));
-  $('clist').innerHTML = clients.map((c) => `<div class="ci" data-id="${c.id}"><input value="${esc(c.name)}" maxlength="80" aria-label="Nom du client"><em>${pays.filter((p) => p.clientId === c.id).length} paiement(s)</em><button class="rn">Renommer</button><button class="rm" ${used.has(c.id) ? 'disabled title="Ce client a des paiements"' : ''}>Supprimer</button></div>`).join('') || '<p class="empty">Aucun client.</p>';
+  fillFilter();
+  $('clist').innerHTML = clients.map((c) => `<div class="ci" data-id="${c.id}"><input value="${esc(c.name)}" maxlength="80" aria-label="Nom du client"><em>${pays.filter((p) => p.clientId === c.id).length} paiement(s)</em><button class="rn">Renommer</button><button class="rm">Supprimer</button></div>`).join('') || '<p class="empty">Aucun client.</p>';
 }
+$('goCli').onclick = () => { $('cliBox').open = true; $('cliBox').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 $('client').onchange = () => { const n = $('client').value === '__new'; $('newc').classList.toggle('on', n); if (n) $('newName').focus(); };
 async function addClient(input) {
   const name = input.value.trim().replace(/\s+/g, ' ');
@@ -336,7 +348,17 @@ $('clist').onclick = async (e) => {
     pays.filter((p) => p.clientId === id).forEach((p) => b.update(doc(db, 'rec_payments', p.id), { clientName: name }));
     await b.commit();
   }
-  if (e.target.classList.contains('rm') && !e.target.disabled && confirm(`Supprimer « ${c.name} » de la liste ?`)) await deleteDoc(doc(db, 'rec_clients', id));
+  const mine = pays.filter((p) => p.clientId === id), n = mine.length;
+  if (e.target.classList.contains('rm')) {
+    if (!n) { if (confirm(`Supprimer « ${c.name} » de la liste ?`)) await deleteDoc(doc(db, 'rec_clients', id)); return; }
+    box.querySelector('.ask')?.remove();
+    box.insertAdjacentHTML('beforeend', `<div class="ask"><b>« ${esc(c.name)} » a ${n} paiement${n > 1 ? 's' : ''}. Que faire ${n > 1 ? 'de ces paiements' : 'de ce paiement'} ?</b><button class="keep">${n > 1 ? 'Les' : 'Le'} garder dans le tableau</button><button class="danger wipe">${n > 1 ? 'Les' : 'Le'} supprimer aussi</button><button class="no">Annuler</button></div>`);
+  }
+  if (e.target.classList.contains('no')) box.querySelector('.ask')?.remove();
+  if (e.target.classList.contains('keep')) await deleteDoc(doc(db, 'rec_clients', id));
+  if (e.target.classList.contains('wipe') && confirm(`Supprimer « ${c.name} » et ses ${n} paiement${n > 1 ? 's' : ''} ? C’est définitif.`)) {
+    const b = writeBatch(db); mine.forEach((p) => b.delete(doc(db, 'rec_payments', p.id))); b.delete(doc(db, 'rec_clients', id)); await b.commit();
+  }
 };
 
 // ---------- saisie / modification ----------
@@ -350,7 +372,7 @@ $('pay').onsubmit = async (e) => {
   e.preventDefault(); const msg = $('formMsg');
   let cid = $('client').value;
   if (cid === '__new') cid = await addClient($('newName'));
-  const c = clients.find((x) => x.id === cid) || (cid ? { id: cid, name: $('client').selectedOptions[0]?.text } : null);
+  const c = clients.find((x) => x.id === cid) || (cid ? { id: cid, name: pays.find((x) => x.clientId === cid)?.clientName || $('client').selectedOptions[0]?.text } : null);
   const amount = Number(String($('amount').value).replace(',', '.'));
   if (!cid || !c) { msg.textContent = 'Choisissez un client.'; msg.className = 'msg err'; return; }
   if (!(amount > 0)) { msg.textContent = 'Indiquez un montant supérieur à 0.'; msg.className = 'msg err'; return; }
@@ -366,7 +388,9 @@ $('pay').onsubmit = async (e) => {
 $('rows').onclick = async (e) => {
   const tr = e.target.closest('tr'); if (!tr) return; const p = pays.find((x) => x.id === tr.dataset.id); if (!p) return;
   if (e.target.classList.contains('ed')) {
-    editId = p.id; $('client').value = p.clientId; $('amount').value = p.amount; cur = p.currency; type = p.type; seg($('cur'), 'c', cur); seg($('type'), 't', type);
+    editId = p.id;
+    if (![...$('client').options].some((o) => o.value === p.clientId)) $('client').insertAdjacentHTML('beforeend', `<option value="${p.clientId}">${esc(p.clientName)} (retiré de la liste)</option>`);
+    $('client').value = p.clientId; $('amount').value = p.amount; cur = p.currency; type = p.type; seg($('cur'), 'c', cur); seg($('type'), 't', type);
     $('date').value = p.date; $('comment').value = p.comment || ''; $('formTitle').innerHTML = 'Modifier le <em>paiement</em>'; $('save').textContent = 'Enregistrer les modifications';
     show('cancelEdit', true); $('formMsg').textContent = ''; $('formCard').classList.add('edit-on'); $('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -408,7 +432,7 @@ function render() {
   const fut = list.filter((p) => p.date > today);
   $('foot').innerHTML = list.length ? `<tr><td data-l="" colspan="2">Total encaissé (${done.length})</td><td data-l="Montant" class="num"><span>${inCur(sum(done), disp)}<small>≈ ${inCur(sum(done), other)}</small>${fut.length ? `<small>+ ${inCur(sum(fut), disp)} prévu${fut.length > 1 ? 's' : ''}</small>` : ''}</span></td><td colspan="4"></td></tr>` : '';
 }
-function fillClientsUsage() { const used = new Set(pays.map((p) => p.clientId)); document.querySelectorAll('#clist .ci').forEach((el) => { const rm = el.querySelector('.rm'); const n = pays.filter((p) => p.clientId === el.dataset.id).length; el.querySelector('em').textContent = `${n} paiement${n > 1 ? 's' : ''}`; rm.disabled = used.has(el.dataset.id); rm.title = rm.disabled ? 'Ce client a des paiements' : ''; }); }
+function fillClientsUsage() { document.querySelectorAll('#clist .ci').forEach((el) => { const n = pays.filter((p) => p.clientId === el.dataset.id).length; el.querySelector('em').textContent = `${n} paiement${n > 1 ? 's' : ''}`; }); }
 </script>
 </body>
 </html>
