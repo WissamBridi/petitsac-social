@@ -56,6 +56,15 @@ textarea{resize:vertical;min-height:44px}
 .msg.err{color:var(--terra);font-weight:600}
 .msg.ok{color:#18753F;font-weight:600}
 .edit-on{outline:2px solid var(--ocre)}
+.chk{display:inline-flex;align-items:center;gap:8px;font:600 14px Inter;color:var(--ink);cursor:pointer;margin-top:4px;user-select:none}
+.chk input{width:18px;height:18px;accent-color:var(--ocre);margin:0}
+.wait{border-color:#F3C7A6;background:#FFFAF3}
+.wait h2 em{color:var(--warn)}
+.t-w{background:#FDEBDD;color:var(--warn)}
+.ra button.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.val{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.val input{width:auto;padding:6px 8px;font-size:13px}
+.val .b{display:flex;gap:4px}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{font:700 11px Inter;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -171,8 +180,10 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
           <div class="row"><input id="amount" type="number" inputmode="decimal" min="0" step="any" required placeholder="150000"><div class="seg" id="cur"><button type="button" data-c="XOF" class="on">FCFA</button><button type="button" data-c="EUR">€</button></div></div>
         </div>
         <div class="f c3 cf">
-          <label for="date">Date du paiement</label>
+          <label for="date" id="dateLab">Date du paiement</label>
           <input id="date" type="date" required>
+          <label class="chk"><input type="checkbox" id="pending"> Paiement en attente</label>
+          <span class="msg hidden" id="pendHint">Pas encore reçu : il compte dans « En attente », pas dans l’encaissé. Vous saisirez la date en le validant.</span>
         </div>
         <div class="f c3 cf">
           <span class="l">Type</span>
@@ -190,8 +201,18 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
       </form>
     </section>
 
+    <section class="card wait hidden" id="waitCard">
+      <h2>En <em>attente</em></h2>
+      <p class="msg" style="margin:-6px 0 12px">Paiements à recevoir. Touchez « Valider » quand l’argent est arrivé, et indiquez la date.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Client</th><th style="text-align:right">Montant</th><th>Type</th><th>En attente depuis</th><th>Commentaire</th><th></th></tr></thead>
+        <tbody id="wrows"></tbody>
+        <tfoot id="wfoot"></tfoot>
+      </table></div>
+    </section>
+
     <section class="card">
-      <h2>Les <em>paiements</em></h2>
+      <h2>Les <em>paiements</em> reçus</h2>
       <p class="msg" id="sortHint" style="margin:-6px 0 12px"></p>
       <div class="tw"><table>
         <thead><tr><th><button id="sortBtn" title="Changer l’ordre">Date</button></th><th>Client</th><th style="text-align:right">Montant</th><th>Type</th><th>Il y a</th><th>Commentaire</th><th></th></tr></thead>
@@ -269,6 +290,9 @@ $('dispCur').onclick = (e) => { const b = e.target.closest('button'); if (b) { d
 $('sortBtn').onclick = () => { asc = !asc; LS.set('ps-rec-asc', asc ? '1' : '0'); render(); };
 $('filter').onchange = render;
 seg($('dispCur'), 'c', disp);
+const isWait = (p) => p.status === 'attente';
+function syncPending() { const on = $('pending').checked; $('date').classList.toggle('hidden', on); $('dateLab').classList.toggle('hidden', on); $('date').required = !on; show('pendHint', on); }
+$('pending').onchange = syncPending;
 $('date').value = ymd(new Date());
 
 // ---------- connexion par lien e-mail ----------
@@ -365,7 +389,7 @@ $('clist').onclick = async (e) => {
 function resetForm() {
   editId = null; $('pay').reset(); $('date').value = ymd(new Date()); cur = 'XOF'; type = 'mensuel'; seg($('cur'), 'c', cur); seg($('type'), 't', type);
   $('newc').classList.remove('on'); $('formTitle').innerHTML = 'Nouveau <em>paiement</em>'; $('save').textContent = 'Enregistrer le paiement';
-  show('cancelEdit', false); $('formCard').classList.remove('edit-on');
+  show('cancelEdit', false); $('formCard').classList.remove('edit-on'); syncPending();
 }
 $('cancelEdit').onclick = () => { resetForm(); $('formMsg').textContent = ''; };
 $('pay').onsubmit = async (e) => {
@@ -376,35 +400,50 @@ $('pay').onsubmit = async (e) => {
   const amount = Number(String($('amount').value).replace(',', '.'));
   if (!cid || !c) { msg.textContent = 'Choisissez un client.'; msg.className = 'msg err'; return; }
   if (!(amount > 0)) { msg.textContent = 'Indiquez un montant supérieur à 0.'; msg.className = 'msg err'; return; }
-  const data = { clientId: cid, clientName: c.name, amount, currency: cur, date: $('date').value, type, comment: $('comment').value.trim() };
+  const wait = $('pending').checked;
+  if (!wait && !$('date').value) { msg.textContent = 'Indiquez la date du paiement, ou cochez « Paiement en attente ».'; msg.className = 'msg err'; return; }
+  const data = { clientId: cid, clientName: c.name, amount, currency: cur, status: wait ? 'attente' : 'recu', date: wait ? null : $('date').value, type, comment: $('comment').value.trim() };
   $('save').disabled = true;
   try {
     if (editId) { await updateDoc(doc(db, 'rec_payments', editId), { ...data, updatedAt: serverTimestamp() }); msg.textContent = 'Paiement modifié.'; }
-    else { await addDoc(collection(db, 'rec_payments'), { ...data, createdAt: serverTimestamp() }); msg.textContent = 'Paiement enregistré.'; }
+    else { await addDoc(collection(db, 'rec_payments'), { ...data, createdAt: serverTimestamp() }); msg.textContent = wait ? 'Paiement ajouté en attente.' : 'Paiement enregistré.'; }
     msg.className = 'msg ok'; resetForm();
   } catch (err) { msg.textContent = 'Enregistrement impossible : ' + (err.code || err.message); msg.className = 'msg err'; }
   $('save').disabled = false;
 };
-$('rows').onclick = async (e) => {
+$('rows').onclick = $('wrows').onclick = async (e) => {
   const tr = e.target.closest('tr'); if (!tr) return; const p = pays.find((x) => x.id === tr.dataset.id); if (!p) return;
+  if (e.target.classList.contains('vd')) {   // valider : saisir la date de réception
+    tr.querySelector('.ra').innerHTML = `<div class="val"><input type="date" class="vdate" value="${ymd(new Date())}" aria-label="Date de réception"><div class="b"><button class="ok vok">Confirmer</button><button class="vno">Annuler</button></div></div>`;
+    tr.querySelector('.vdate').focus(); return;
+  }
+  if (e.target.classList.contains('vno')) return render();
+  if (e.target.classList.contains('vok')) {
+    const d = tr.querySelector('.vdate').value; if (!d) return tr.querySelector('.vdate').focus();
+    e.target.disabled = true;
+    try { await updateDoc(doc(db, 'rec_payments', p.id), { status: 'recu', date: d, validatedAt: serverTimestamp() }); }
+    catch (err) { alert('Validation impossible : ' + (err.code || err.message)); e.target.disabled = false; }
+    return;
+  }
   if (e.target.classList.contains('ed')) {
     editId = p.id;
     if (![...$('client').options].some((o) => o.value === p.clientId)) $('client').insertAdjacentHTML('beforeend', `<option value="${p.clientId}">${esc(p.clientName)} (retiré de la liste)</option>`);
     $('client').value = p.clientId; $('amount').value = p.amount; cur = p.currency; type = p.type; seg($('cur'), 'c', cur); seg($('type'), 't', type);
-    $('date').value = p.date; $('comment').value = p.comment || ''; $('formTitle').innerHTML = 'Modifier le <em>paiement</em>'; $('save').textContent = 'Enregistrer les modifications';
+    $('pending').checked = isWait(p); $('date').value = p.date || ymd(new Date()); syncPending(); $('comment').value = p.comment || ''; $('formTitle').innerHTML = 'Modifier le <em>paiement</em>'; $('save').textContent = 'Enregistrer les modifications';
     show('cancelEdit', true); $('formMsg').textContent = ''; $('formCard').classList.add('edit-on'); $('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  if (e.target.classList.contains('del') && confirm(`Supprimer le paiement de ${p.clientName} du ${fmtD(p.date)} (${p.currency === 'EUR' ? fmtE(p.amount) : fmtX(p.amount)}) ?`)) await deleteDoc(doc(db, 'rec_payments', p.id));
+  if (e.target.classList.contains('del') && confirm(`Supprimer le paiement ${isWait(p) ? 'en attente ' : ''}de ${p.clientName}${p.date ? ' du ' + fmtD(p.date) : ''} (${p.currency === 'EUR' ? fmtE(p.amount) : fmtX(p.amount)}) ?`)) await deleteDoc(doc(db, 'rec_payments', p.id));
 };
 
 // ---------- affichage ----------
 function render() {
   fillClientsUsage();
-  const f = $('filter').value, today = ymd(new Date()), month = today.slice(0, 7);
-  const list = pays.filter((p) => !f || p.clientId === f).sort((a, b) => (a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))) * (asc ? 1 : -1));
+  const f = $('filter').value, today = ymd(new Date());
+  const mineAll = pays.filter((p) => !f || p.clientId === f), waits = mineAll.filter(isWait);
+  const list = mineAll.filter((p) => !isWait(p)).sort((a, b) => (a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))) * (asc ? 1 : -1));
   const done = list.filter((p) => p.date <= today);
   const sum = (arr) => arr.reduce((s, p) => s + toX(p), 0);
-  const total = sum(done), mois = done.filter((p) => p.date.startsWith(month));
+  const total = sum(done), dueX = sum(waits);
   // récurrent : dernier paiement mensuel de chaque client, s'il date de moins de 45 jours
   const last = {};
   done.filter((p) => p.type === 'mensuel').forEach((p) => { if (!last[p.clientId] || last[p.clientId].date < p.date) last[p.clientId] = p; });
@@ -412,10 +451,9 @@ function render() {
   const ponct = done.filter((p) => p.type === 'ponctuel');
   const nCli = new Set(done.map((p) => p.clientId)).size;
   const other = disp === 'EUR' ? 'XOF' : 'EUR';
-  const moisNom = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   $('kpis').innerHTML = [
     ['hi', inCur(total, disp), 'Total encaissé', `soit ${inCur(total, other)}`],
-    ['', inCur(sum(mois), disp), `Encaissé en ${moisNom}`, `${mois.length} paiement${mois.length > 1 ? 's' : ''}`],
+    ['', inCur(dueX, disp), 'En attente', waits.length ? `${waits.length} paiement${waits.length > 1 ? 's' : ''} à recevoir` : 'rien à recevoir'],
     ['', inCur(sum(act), disp), 'Mensuel récurrent', `${act.length} client${act.length > 1 ? 's' : ''} à jour (moins de 45 jours)`],
     ['', String(done.length), `Paiement${done.length > 1 ? 's' : ''} reçu${done.length > 1 ? 's' : ''}`, `${nCli} client${nCli > 1 ? 's' : ''} · ponctuels : ${inCur(sum(ponct), disp)}`],
   ].map(([c, b, s, sm]) => `<div class="kpi ${c}"><b>${b}</b><span>${s}</span><small>${sm}</small></div>`).join('');
@@ -428,8 +466,20 @@ function render() {
       <td data-l="Il y a"><span><span class="since ${s.fut ? 'fut' : ''}">${s.txt}</span>${s.fut ? '<small>prévu</small>' : ''}</span></td>
       <td data-l="Commentaire" class="com">${esc(p.comment) || '<span style="opacity:.5">–</span>'}</td>
       <td class="ra"><div><button class="ed">Modifier</button><button class="del">Supprimer</button></div></td></tr>`;
-  }).join('') || '<tr><td colspan="7" class="empty">Aucun paiement pour l’instant. Saisissez le premier ci-dessus.</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="empty">Aucun paiement reçu pour l’instant.</td></tr>';
   const fut = list.filter((p) => p.date > today);
+  show('waitCard', waits.length > 0);
+  $('wrows').innerHTML = waits.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)).map((p) => {
+    const orig = p.currency === 'EUR' ? fmtE(p.amount) : fmtX(p.amount), conv = p.currency === 'EUR' ? fmtX(p.amount * RATE) : fmtE(p.amount / RATE);
+    const t = p.createdAt?.seconds ? since(ymd(new Date(p.createdAt.seconds * 1000))).txt : 'Aujourd’hui';
+    return `<tr data-id="${p.id}"><td data-l="Client" class="cl">${esc(p.clientName)}</td>
+      <td data-l="Montant" class="num"><span><b>${orig}</b><small>≈ ${conv}</small></span></td>
+      <td data-l="Type"><span class="tag ${p.type === 'mensuel' ? 't-m' : 't-p'}">${p.type === 'mensuel' ? 'Mensuel' : 'Ponctuel'}</span></td>
+      <td data-l="En attente depuis"><span class="since fut">${t}</span></td>
+      <td data-l="Commentaire" class="com">${esc(p.comment) || '<span style="opacity:.5">–</span>'}</td>
+      <td class="ra"><div><button class="ok vd">Valider</button><button class="ed">Modifier</button><button class="del">Supprimer</button></div></td></tr>`;
+  }).join('');
+  $('wfoot').innerHTML = waits.length ? `<tr><td data-l="">À recevoir (${waits.length})</td><td data-l="Montant" class="num"><span>${inCur(dueX, disp)}<small>≈ ${inCur(dueX, other)}</small></span></td><td colspan="4"></td></tr>` : '';
   $('foot').innerHTML = list.length ? `<tr><td data-l="" colspan="2">Total encaissé (${done.length})</td><td data-l="Montant" class="num"><span>${inCur(sum(done), disp)}<small>≈ ${inCur(sum(done), other)}</small>${fut.length ? `<small>+ ${inCur(sum(fut), disp)} prévu${fut.length > 1 ? 's' : ''}</small>` : ''}</span></td><td colspan="4"></td></tr>` : '';
 }
 function fillClientsUsage() { document.querySelectorAll('#clist .ci').forEach((el) => { const n = pays.filter((p) => p.clientId === el.dataset.id).length; el.querySelector('em').textContent = `${n} paiement${n > 1 ? 's' : ''}`; }); }
