@@ -28,7 +28,12 @@ h2 em{color:var(--terra)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:22px}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
-.kpi b{display:block;font:italic 400 34px/1.05 'Instrument Serif',serif;overflow-wrap:anywhere}
+.kpi b{display:block;font:italic 400 clamp(28px,3vw,34px)/1.05 'Instrument Serif',serif;overflow-wrap:anywhere}
+.kpi .kv{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px}
+.kpi .kv b{white-space:nowrap;overflow-wrap:normal}
+.kpi .kv i{font:600 14px/1.2 Inter;font-style:normal;color:var(--soft);white-space:nowrap}
+.kpi.hi .kv i{color:#CBBFB2}
+.kpis.stack .kv i{flex-basis:100%;margin-top:3px}
 .kpi span{display:block;color:var(--soft);font-size:13px;margin-top:4px}
 .kpi small{display:block;color:var(--soft);font-size:12px;margin-top:2px;text-wrap:pretty}
 .kpi.hi{background:var(--ink);border-color:var(--ink);color:var(--bg)}
@@ -119,7 +124,9 @@ details.alt summary{cursor:pointer;font:600 13px Inter;color:var(--soft)}
 details.alt form{margin-top:12px}
 .kpi .prev{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
 .kpi .prev em{display:block;font:700 11px Inter;letter-spacing:.1em;text-transform:uppercase;color:var(--warn);font-style:normal}
-.kpi .prev b{font-size:26px;margin-top:4px;color:var(--warn)}
+.kpi .prev .kv{margin-top:4px}
+.kpi .prev b{font-size:26px;color:var(--warn)}
+.kpi .prev .kv i{font-size:13px}
 .hidden{display:none!important}
 footer{margin-top:40px;color:var(--soft);font-size:12px}
 @media (max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr 1fr}.c3,.c2{grid-column:span 1}.c6,.acts,.cf{grid-column:span 2}}
@@ -274,6 +281,7 @@ const LS = { get: (k) => { try { return localStorage.getItem(k); } catch { retur
 const nfX = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 const nfE = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 const fmtX = (v) => nfX.format(Math.round(v)) + ' FCFA';
+const nfE0 = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtE = (v) => nfE.format(v);
 const toX = (p) => p.currency === 'EUR' ? p.amount * RATE : p.amount;
 const inCur = (x, c) => c === 'EUR' ? fmtE(x / RATE) : fmtX(x);   // x en FCFA
@@ -494,15 +502,19 @@ function render() {
   const wm = waits.filter((p) => p.type === 'mensuel').sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
   wm.forEach((p) => { rate[p.clientId] = toX(p); });
   const prevX = Object.values(rate).reduce((s, v) => s + v, 0), nPrev = Object.keys(rate).length, nWm = new Set(wm.map((p) => p.clientId)).size;
-  const prev = `<div class="prev"><em>Prévision mensuelle</em><b>${inCur(prevX, disp)}</b><small>${nWm
+  // grand montant + l'autre devise en petit à côté (euros arrondis à l'unité)
+  const alt = (x) => disp === 'EUR' ? fmtX(x) : nfE0.format(x / RATE);
+  const big = (x) => `<div class="kv"><b>${inCur(x, disp)}</b><i>${alt(x)}</i></div>`;
+  const prev = `<div class="prev"><em>Prévision mensuelle</em>${big(prevX)}<small>${nWm
     ? `${nPrev} client${nPrev > 1 ? 's' : ''}, dont ${nWm} en attente`
     : 'aucune mensualité en attente'}</small></div>`;
   $('kpis').innerHTML = [
-    ['hi', inCur(total, disp), 'Total encaissé', `soit ${inCur(total, other)}`],
-    ['', inCur(dueX, disp), 'En attente', waits.length ? `${waits.length} paiement${waits.length > 1 ? 's' : ''} à recevoir` : 'rien à recevoir'],
-    ['', inCur(sum(act), disp), 'Mensuel récurrent', `${act.length} client${act.length > 1 ? 's' : ''} à jour (moins de 45 jours)`, prev],
-    ['', String(done.length), `Paiement${done.length > 1 ? 's' : ''} reçu${done.length > 1 ? 's' : ''}`, `${nCli} client${nCli > 1 ? 's' : ''} · ponctuels : ${inCur(sum(ponct), disp)}`],
-  ].map(([c, b, s, sm, x = '']) => `<div class="kpi ${c}"><b>${b}</b><span>${s}</span><small>${sm}</small>${x}</div>`).join('');
+    ['hi', big(total), 'Total encaissé', ''],
+    ['', big(dueX), 'En attente', waits.length ? `${waits.length} paiement${waits.length > 1 ? 's' : ''} à recevoir` : 'rien à recevoir'],
+    ['', big(sum(act)), 'Mensuel récurrent', `${act.length} client${act.length > 1 ? 's' : ''} à jour (moins de 45 jours)`, prev],
+    ['', `<b>${done.length}</b>`, `Paiement${done.length > 1 ? 's' : ''} reçu${done.length > 1 ? 's' : ''}`, `${nCli} client${nCli > 1 ? 's' : ''} · ponctuels : ${inCur(sum(ponct), disp)} (${alt(sum(ponct))})`],
+  ].map(([c, b, s, sm, x = '']) => `<div class="kpi ${c}">${b}<span>${s}</span>${sm ? `<small>${sm}</small>` : ''}${x}</div>`).join('');
+  fitKpis();
   $('sortBtn').classList.toggle('desc', !asc); $('sortHint').textContent = asc ? 'Du plus ancien au plus récent. Touchez « Date » pour inverser.' : 'Du plus récent au plus ancien. Touchez « Date » pour inverser.';
   $('rows').innerHTML = list.map((p) => {
     const s = since(p.date), orig = p.currency === 'EUR' ? fmtE(p.amount) : fmtX(p.amount), conv = p.currency === 'EUR' ? fmtX(p.amount * RATE) : fmtE(p.amount / RATE);
@@ -528,6 +540,15 @@ function render() {
   $('wfoot').innerHTML = waits.length ? `<tr><td data-l="">À recevoir (${waits.length})</td><td data-l="Montant" class="num"><span>${inCur(dueX, disp)}<small>≈ ${inCur(dueX, other)}</small></span></td><td colspan="4"></td></tr>` : '';
   $('foot').innerHTML = list.length ? `<tr><td data-l="" colspan="2">Total encaissé (${done.length})</td><td data-l="Montant" class="num"><span>${inCur(sum(done), disp)}<small>≈ ${inCur(sum(done), other)}</small>${fut.length ? `<small>+ ${inCur(sum(fut), disp)} prévu${fut.length > 1 ? 's' : ''}</small>` : ''}</span></td><td colspan="4"></td></tr>` : '';
 }
+// euros à côté du montant ; s'il manque de la place dans une carte, toutes les cartes les passent dessous (alignement identique)
+function fitKpis() {
+  const k = $('kpis'); k.classList.remove('stack');
+  const wrapped = [...k.querySelectorAll('.kv')].some((kv) => { const b = kv.querySelector('b'), i = kv.querySelector('i'); return i && i.getBoundingClientRect().left < b.getBoundingClientRect().right; });
+  k.classList.toggle('stack', wrapped);
+}
+let fitRaf = 0;
+addEventListener('resize', () => { cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(fitKpis); });
+document.fonts?.ready.then(fitKpis);
 function fillClientsUsage() { document.querySelectorAll('#clist .ci').forEach((el) => { const n = pays.filter((p) => p.clientId === el.dataset.id).length; el.querySelector('em').textContent = `${n} paiement${n > 1 ? 's' : ''}`; }); }
 </script>
 </body>
