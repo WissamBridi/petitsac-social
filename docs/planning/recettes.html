@@ -265,9 +265,9 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
 
     <section class="card" id="recapCard">
       <h2>Récapitulatif <em>par client</em></h2>
-      <p class="msg" style="margin:-6px 0 12px">Ce que chaque client a payé depuis le début, en mensuel et en ponctuel, en FCFA et en euros. Les paiements en attente sont dans la dernière colonne, à part.</p>
+      <p class="msg" style="margin:-6px 0 12px">Mensuel et ponctuel de chaque client depuis le début, en FCFA et en euros. Les paiements en attente sont comptés avec leur type.</p>
       <div class="tw"><table class="recap">
-        <thead><tr><th>Client</th><th class="r">Mensuel</th><th class="r">Ponctuel</th><th class="r">Total encaissé</th><th class="r">En attente</th></tr></thead>
+        <thead><tr><th>Client</th><th class="r">Mensuel</th><th class="r">Ponctuel</th><th class="r">Total</th></tr></thead>
         <tbody id="rrows"></tbody>
         <tfoot id="rfoot"></tfoot>
       </table></div>
@@ -560,24 +560,24 @@ function render() {
   }).join('');
   $('wfoot').innerHTML = waits.length ? `<tr><td data-l="">À recevoir (${waits.length})</td><td data-l="Montant" class="num"><span>${inCur(dueX, disp)}<small>≈ ${inCur(dueX, other)}</small></span></td><td colspan="4"></td></tr>` : '';
   $('foot').innerHTML = list.length ? `<tr><td data-l="" colspan="2">Total encaissé (${done.length})</td><td data-l="Montant" class="num"><span>${inCur(sum(done), disp)}<small>≈ ${inCur(sum(done), other)}</small>${fut.length ? `<small>+ ${inCur(sum(fut), disp)} prévu${fut.length > 1 ? 's' : ''}</small>` : ''}</span></td><td colspan="4"></td></tr>` : '';
-  renderRecap(f, today);
+  renderRecap(f);
 }
-// récapitulatif par client (tous les clients, le client filtré est surligné) : encaissé mensuel / ponctuel, total, en attente
-function renderRecap(f, today) {
+// récapitulatif par client (tous les clients, le client filtré est surligné) : mensuel / ponctuel / total,
+// chaque paiement compté avec son type, qu'il soit reçu, prévu ou en attente (demande de Wissam du 27/11)
+function renderRecap(f) {
   const other = disp === 'EUR' ? 'XOF' : 'EUR', names = new Map(clients.map((c) => [c.id, c.name])), rows = new Map();
   pays.forEach((p) => {
-    if (!rows.has(p.clientId)) rows.set(p.clientId, { id: p.clientId, name: names.get(p.clientId) || p.clientName, gone: !names.has(p.clientId), m: 0, o: 0, w: 0 });
+    if (!rows.has(p.clientId)) rows.set(p.clientId, { id: p.clientId, name: names.get(p.clientId) || p.clientName, gone: !names.has(p.clientId), m: 0, o: 0 });
     const r = rows.get(p.clientId), x = toX(p);
-    if (isWait(p)) r.w += x;
-    else if (p.date <= today) { if (p.type === 'mensuel') r.m += x; else r.o += x; }
+    if (p.type === 'mensuel') r.m += x; else r.o += x;
   });
-  const list = [...rows.values()].sort((a, b) => (b.m + b.o) - (a.m + a.o) || b.w - a.w || a.name.localeCompare(b.name, 'fr'));
+  const list = [...rows.values()].sort((a, b) => (b.m + b.o) - (a.m + a.o) || a.name.localeCompare(b.name, 'fr'));
   const cell = (x, l) => `<td data-l="${l}" class="num">${x ? `<span><b>${inCur(x, disp)}</b><small>${inCur(x, other)}</small></span>` : '<span class="nil">–</span>'}</td>`;
-  $('rrows').innerHTML = list.map((r) => `<tr class="${r.id === f ? 'hl' : ''}"><td data-l="Client" class="cl">${esc(r.name)}${r.gone ? '<small>retiré de la liste</small>' : ''}</td>${cell(r.m, 'Mensuel')}${cell(r.o, 'Ponctuel')}${cell(r.m + r.o, 'Total encaissé')}${cell(r.w, 'En attente')}</tr>`).join('')
-    || '<tr><td colspan="5" class="empty">Aucun paiement pour l’instant.</td></tr>';
-  const t = list.reduce((a, r) => ({ m: a.m + r.m, o: a.o + r.o, w: a.w + r.w }), { m: 0, o: 0, w: 0 });
+  $('rrows').innerHTML = list.map((r) => `<tr class="${r.id === f ? 'hl' : ''}"><td data-l="Client" class="cl">${esc(r.name)}${r.gone ? '<small>retiré de la liste</small>' : ''}</td>${cell(r.m, 'Mensuel')}${cell(r.o, 'Ponctuel')}${cell(r.m + r.o, 'Total')}</tr>`).join('')
+    || '<tr><td colspan="4" class="empty">Aucun paiement pour l’instant.</td></tr>';
+  const t = list.reduce((a, r) => ({ m: a.m + r.m, o: a.o + r.o }), { m: 0, o: 0 });
   const tot = (x, l) => `<td data-l="${l}" class="num"><span>${inCur(x, disp)}<small>${inCur(x, other)}</small></span></td>`;
-  $('rfoot').innerHTML = list.length ? `<tr><td data-l="">Total (${list.length} client${list.length > 1 ? 's' : ''})</td>${tot(t.m, 'Mensuel')}${tot(t.o, 'Ponctuel')}${tot(t.m + t.o, 'Total encaissé')}${tot(t.w, 'En attente')}</tr>` : '';
+  $('rfoot').innerHTML = list.length ? `<tr><td data-l="">Total (${list.length} client${list.length > 1 ? 's' : ''})</td>${tot(t.m, 'Mensuel')}${tot(t.o, 'Ponctuel')}${tot(t.m + t.o, 'Total')}</tr>` : '';
 }
 // euros à côté du montant ; s'il manque de la place dans une carte, toutes les cartes les passent dessous (alignement identique)
 function fitKpis() {
