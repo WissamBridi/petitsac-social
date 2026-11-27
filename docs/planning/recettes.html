@@ -137,6 +137,15 @@ th.r{text-align:right}
 .recap .nil{color:var(--soft);opacity:.55}
 .recap tr.hl td{background:#FFF6E6}
 .recap tfoot td{vertical-align:top}
+.recap th.sel,.recap td.sel{width:30px;padding-right:0}
+@media (max-width:720px){.recap td.sel{width:100%;align-items:center}}
+.recap .rsel{width:18px;height:18px;margin:2px 0 0;accent-color:var(--terra);cursor:pointer;padding:0}
+.recap .unmerge{display:inline-block;margin-top:5px}
+.recap tr.picked td{background:#FFF1DE}
+.mergebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#FFF6E6;border:1px solid #F3C7A6;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.mergebar span{font:600 13px Inter;color:var(--warn);margin-right:4px}
+.mergebar input{flex:1 1 240px;width:auto;background:var(--card)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .hidden{display:none!important}
 footer{margin-top:40px;color:var(--soft);font-size:12px}
 @media (max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr 1fr}.c3,.c2{grid-column:span 1}.c6,.acts,.cf{grid-column:span 2}}
@@ -265,9 +274,15 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
 
     <section class="card" id="recapCard">
       <h2>Récapitulatif <em>par client</em></h2>
-      <p class="msg" style="margin:-6px 0 12px">Mensuel et ponctuel de chaque client depuis le début, en FCFA et en euros. Les paiements en attente sont comptés avec leur type.</p>
+      <p class="msg" style="margin:-6px 0 12px">Mensuel et ponctuel de chaque client depuis le début, en FCFA et en euros. Les paiements en attente sont comptés avec leur type. Cochez deux lignes ou plus pour les réunir sur une seule ligne.</p>
+      <div class="mergebar hidden" id="mergeBar">
+        <span id="mergeCount"></span>
+        <input id="mergeName" maxlength="80" aria-label="Nom de la ligne fusionnée" placeholder="Nom de la ligne fusionnée">
+        <button class="btn main" id="mergeGo">Fusionner</button>
+        <button class="btn" id="mergeCancel">Annuler</button>
+      </div>
       <div class="tw"><table class="recap">
-        <thead><tr><th>Client</th><th class="r">Mensuel</th><th class="r">Ponctuel</th><th class="r">Total</th></tr></thead>
+        <thead><tr><th class="sel"><span class="sr">Sélection</span></th><th>Client</th><th class="r">Mensuel</th><th class="r">Ponctuel</th><th class="r">Total</th></tr></thead>
         <tbody id="rrows"></tbody>
         <tfoot id="rfoot"></tfoot>
       </table></div>
@@ -280,7 +295,7 @@ footer{margin-top:40px;color:var(--soft);font-size:12px}
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, collection, doc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyAVJ4mjGsOptHdyAlhc0wvIzJKeO4D26i0',
@@ -387,6 +402,7 @@ onAuthStateChanged(auth, (u) => {
 async function start() {
   unsub.push(onSnapshot(collection(db, 'rec_clients'), (s) => { clients = s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'fr')); fillClients(); render(); }, denied));
   unsub.push(onSnapshot(collection(db, 'rec_payments'), (s) => { pays = s.docs.map((d) => ({ id: d.id, ...d.data() })); fillFilter(); render(); }, denied));
+  unsub.push(onSnapshot(doc(db, 'rec_meta', 'recap'), (s) => { groups = (s.exists() && s.data().groups) || []; render(); }, denied));
 }
 function denied(e) {
   show('app', false); show('loginBox', true);
@@ -563,7 +579,11 @@ function render() {
   renderRecap(f);
 }
 // récapitulatif par client (tous les clients, le client filtré est surligné) : mensuel / ponctuel / total,
-// chaque paiement compté avec son type, qu'il soit reçu, prévu ou en attente (demande de Wissam du 27/11)
+// chaque paiement compté avec son type, qu'il soit reçu, prévu ou en attente (demande de Wissam du 27/11).
+// Fusion manuelle (27/11) : des clients cochés peuvent être réunis sur une ligne ; les paiements ne changent pas,
+// les groupes vivent dans rec_meta/recap et se défont avec « Séparer ».
+let groups = [], recapRows = [];
+const picked = new Set();
 function renderRecap(f) {
   const other = disp === 'EUR' ? 'XOF' : 'EUR', names = new Map(clients.map((c) => [c.id, c.name])), rows = new Map();
   pays.forEach((p) => {
@@ -571,14 +591,73 @@ function renderRecap(f) {
     const r = rows.get(p.clientId), x = toX(p);
     if (p.type === 'mensuel') r.m += x; else r.o += x;
   });
-  const list = [...rows.values()].sort((a, b) => (b.m + b.o) - (a.m + a.o) || a.name.localeCompare(b.name, 'fr'));
+  const inGroup = new Set(), out = [];
+  groups.forEach((g) => {
+    const mem = (g.members || []).map((id) => rows.get(id)).filter(Boolean);
+    (g.members || []).forEach((id) => inGroup.add(id));
+    if (!mem.length) return;
+    out.push({ key: 'g:' + g.id, gid: g.id, name: g.name, parts: mem.map((r) => r.name), ids: g.members, m: mem.reduce((a, r) => a + r.m, 0), o: mem.reduce((a, r) => a + r.o, 0) });
+  });
+  rows.forEach((r, id) => { if (!inGroup.has(id)) out.push({ key: 'c:' + id, name: r.name, parts: null, gone: r.gone, ids: [id], m: r.m, o: r.o }); });
+  out.sort((a, b) => (b.m + b.o) - (a.m + a.o) || a.name.localeCompare(b.name, 'fr'));
+  recapRows = out;
+  [...picked].forEach((k) => { if (!out.some((r) => r.key === k)) picked.delete(k); });
   const cell = (x, l) => `<td data-l="${l}" class="num">${x ? `<span><b>${inCur(x, disp)}</b><small>${inCur(x, other)}</small></span>` : '<span class="nil">–</span>'}</td>`;
-  $('rrows').innerHTML = list.map((r) => `<tr class="${r.id === f ? 'hl' : ''}"><td data-l="Client" class="cl">${esc(r.name)}${r.gone ? '<small>retiré de la liste</small>' : ''}</td>${cell(r.m, 'Mensuel')}${cell(r.o, 'Ponctuel')}${cell(r.m + r.o, 'Total')}</tr>`).join('')
-    || '<tr><td colspan="4" class="empty">Aucun paiement pour l’instant.</td></tr>';
-  const t = list.reduce((a, r) => ({ m: a.m + r.m, o: a.o + r.o }), { m: 0, o: 0 });
+  $('rrows').innerHTML = out.map((r) => `<tr data-key="${esc(r.key)}" class="${r.ids.includes(f) ? 'hl' : ''}${picked.has(r.key) ? ' picked' : ''}">
+      <td data-l="Sélectionner" class="sel"><input type="checkbox" class="rsel" aria-label="Sélectionner ${esc(r.name)}"${picked.has(r.key) ? ' checked' : ''}></td>
+      <td data-l="Client" class="cl"><span>${esc(r.name)}${r.parts ? `${r.parts.join(' + ') !== r.name ? `<small>${r.parts.map(esc).join(' + ')}</small>` : ''}<button class="lnkb unmerge">Séparer</button>` : ''}${r.gone ? '<small>retiré de la liste</small>' : ''}</span></td>
+      ${cell(r.m, 'Mensuel')}${cell(r.o, 'Ponctuel')}${cell(r.m + r.o, 'Total')}</tr>`).join('')
+    || '<tr><td colspan="5" class="empty">Aucun paiement pour l’instant.</td></tr>';
+  const t = out.reduce((a, r) => ({ m: a.m + r.m, o: a.o + r.o }), { m: 0, o: 0 });
   const tot = (x, l) => `<td data-l="${l}" class="num"><span>${inCur(x, disp)}<small>${inCur(x, other)}</small></span></td>`;
-  $('rfoot').innerHTML = list.length ? `<tr><td data-l="">Total (${list.length} client${list.length > 1 ? 's' : ''})</td>${tot(t.m, 'Mensuel')}${tot(t.o, 'Ponctuel')}${tot(t.m + t.o, 'Total')}</tr>` : '';
+  $('rfoot').innerHTML = out.length ? `<tr><td data-l="" colspan="2">Total (${out.length} ligne${out.length > 1 ? 's' : ''})</td>${tot(t.m, 'Mensuel')}${tot(t.o, 'Ponctuel')}${tot(t.m + t.o, 'Total')}</tr>` : '';
+  syncMergeBar();
 }
+// nom proposé : « Party Factory + KÓLLËRE - Fatima » quand les lignes ont le même contact après « - », sinon « A + B »
+function mergeName(rows) {
+  const all = rows.flatMap((r) => r.parts || [r.name]);
+  const split = all.map((n) => { const i = n.lastIndexOf(' - '); return i > 0 ? [n.slice(0, i).trim(), n.slice(i + 3).trim()] : [n.trim(), '']; });
+  const who = split[0][1];
+  if (who && split.every(([, c]) => c.toLowerCase() === who.toLowerCase())) return split.map(([b]) => b).join(' + ') + ' - ' + who;
+  return all.join(' + ');
+}
+function syncMergeBar() {
+  const sel = recapRows.filter((r) => picked.has(r.key)), on = sel.length >= 2;
+  show('mergeBar', on);
+  if (!on) return;
+  $('mergeCount').textContent = `${sel.length} lignes sélectionnées`;
+  const proposal = mergeName(sel);
+  if (!$('mergeName').dataset.touched) $('mergeName').value = proposal;
+}
+async function saveGroups(next) {
+  try { await setDoc(doc(db, 'rec_meta', 'recap'), { groups: next, updatedAt: serverTimestamp() }, { merge: true }); }
+  catch (err) { alert('Enregistrement impossible : ' + (err.code || err.message)); }
+}
+$('rrows').addEventListener('change', (e) => {
+  if (!e.target.classList.contains('rsel')) return;
+  const tr = e.target.closest('tr'), k = tr.dataset.key;
+  if (e.target.checked) picked.add(k); else picked.delete(k);
+  tr.classList.toggle('picked', e.target.checked);
+  if (picked.size < 2) delete $('mergeName').dataset.touched;
+  syncMergeBar();
+});
+$('rrows').addEventListener('click', async (e) => {
+  if (!e.target.classList.contains('unmerge')) return;
+  const r = recapRows.find((x) => x.key === e.target.closest('tr').dataset.key); if (!r) return;
+  if (!confirm(`Séparer « ${r.name} » ? Chaque client retrouve sa propre ligne (les paiements ne changent pas).`)) return;
+  picked.delete(r.key);
+  await saveGroups(groups.filter((g) => g.id !== r.gid));
+});
+$('mergeName').addEventListener('input', () => { $('mergeName').dataset.touched = '1'; });
+$('mergeCancel').onclick = () => { picked.clear(); delete $('mergeName').dataset.touched; render(); };
+$('mergeGo').onclick = async () => {
+  const sel = recapRows.filter((r) => picked.has(r.key)); if (sel.length < 2) return;
+  const name = $('mergeName').value.trim().replace(/\s+/g, ' ') || mergeName(sel);
+  const ids = [...new Set(sel.flatMap((r) => r.ids))], drop = new Set(sel.filter((r) => r.gid).map((r) => r.gid));
+  $('mergeGo').disabled = true;
+  await saveGroups(groups.filter((g) => !drop.has(g.id)).concat([{ id: 'g' + Date.now().toString(36), name, members: ids }]));
+  $('mergeGo').disabled = false; picked.clear(); delete $('mergeName').dataset.touched;
+};
 // euros à côté du montant ; s'il manque de la place dans une carte, toutes les cartes les passent dessous (alignement identique)
 function fitKpis() {
   const k = $('kpis'); k.classList.remove('stack');
