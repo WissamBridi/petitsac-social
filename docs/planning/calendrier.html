@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Calendrier éditorial Petit Sac</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FBF6EE;--card:#FFFFFF;--ink:#17110C;--soft:#6B5F55;--line:#EADFCF;--terra:#C8442F;--ocre:#E8A33D;--ok:#22A45D;--warn:#B4561E}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 16px 80px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.brand{font:600 13px Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--terra)}
+h1{font:italic 400 clamp(40px,7vw,64px)/1 'Instrument Serif',serif;margin-top:6px}
+h1 em{color:var(--terra)}
+h2{font:italic 400 28px/1.05 'Instrument Serif',serif;margin-bottom:12px}
+h2 em{color:var(--terra)}
+.sub{color:var(--soft);margin-top:8px;max-width:640px;text-wrap:pretty}
+.hbtn{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:600 13px Inter;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:9px 16px;cursor:pointer;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px}
+.btn:hover{border-color:var(--terra)}
+.btn.main{background:var(--terra);border-color:var(--terra);color:#fff}
+.btn:disabled{opacity:.55;cursor:wait}
+.btn.ghost{background:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:22px}
+.msg{font-size:13px;color:var(--soft)}
+.msg.err{color:var(--terra);font-weight:600}
+.lnkb{all:unset;cursor:pointer;font:600 13px Inter;color:var(--terra)}
+.lnkb:hover{text-decoration:underline}
+.lnkb:focus-visible,.btn:focus-visible,.ev a:focus-visible,.ev .ed:focus-visible,.lg:focus-visible,.seg button:focus-visible,.nav button:focus-visible{outline:2px solid var(--terra);outline-offset:2px}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0}
+.hidden{display:none!important}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+input,select{font:400 15px Inter;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:44px}
+input:focus,select:focus{outline:2px solid #F3C7A6;border-color:var(--terra)}
+
+/* connexion aux webapps clients */
+.logins{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-top:12px}
+.login{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:12px;background:var(--bg)}
+.login .who{flex:1 1 100%;display:flex;align-items:center;gap:8px;font-weight:700}
+.login input[type=password]{flex:1 1 160px;min-width:0;background:var(--card)}
+.login .msg{flex:1 1 100%}
+
+/* barre d'outils */
+.tools{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.nav{display:flex;align-items:center;gap:6px}
+.nav button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);cursor:pointer;font:600 18px Inter;color:var(--ink);display:grid;place-items:center}
+.nav button:hover{border-color:var(--terra)}
+.nav h2{margin:0 8px 0 6px;min-width:210px;font-size:32px}
+.right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--card);padding:3px}
+.seg button{font:600 13px Inter;border:0;background:transparent;color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer;min-height:34px}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center}
+.lg{display:inline-flex;align-items:center;gap:8px;font:600 13px Inter;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;cursor:pointer;color:var(--ink);min-height:40px}
+.lg[aria-pressed=true]{background:var(--t);border-color:var(--c)}
+.lg[aria-pressed=false]{opacity:.6}
+.lg[aria-pressed=false] .dot{background:transparent;box-shadow:inset 0 0 0 2px var(--c)}
+.lg .n{font-weight:700;color:var(--c)}
+.legend .key{font-size:12.5px;color:var(--soft);display:inline-flex;align-items:center;gap:6px;margin-left:4px}
+.legend .key i{display:inline-block;width:24px;height:16px;border-radius:4px;border-left:4px dashed var(--soft);background:#F1E9DE}
+
+/* mois */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.dow{background:var(--card);font:700 11px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);padding:10px 10px 8px}
+.day{background:var(--card);min-height:96px;padding:6px 6px 8px;display:flex;flex-direction:column;gap:5px;min-width:0;transition:background .15s}
+.day .dn{font:600 13px Inter;color:var(--soft);padding:2px 4px 0}
+.day.out{background:#FBF8F3}.day.out .dn{color:#B9AE9F}
+.day.past .ev{opacity:.6}
+.day.today{box-shadow:inset 0 0 0 2px var(--terra)}
+.day.today .dn b{background:var(--terra);color:#fff;border-radius:999px;padding:1px 8px}
+.day.over{background:#FFF1DE}
+
+/* publication */
+.ev{position:relative;display:flex;align-items:stretch;min-width:0;border-radius:9px;background:var(--t);border-left:4px solid var(--c)}
+.ev[draggable=true]{cursor:grab}
+.ev .go{flex:1;min-width:0;padding:5px 2px 6px 7px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;gap:1px}
+.ev .cl{font:700 10.5px/1.3 Inter;letter-spacing:.05em;text-transform:uppercase;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .ti{font:500 12px/1.35 Inter;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .ti b{font-weight:700}
+.ev .sl{display:flex;flex-wrap:wrap;gap:2px 8px;font:700 12px/1.4 Inter;font-variant-numeric:tabular-nums}
+.ev .sl>span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.ev .sl .nt{font-weight:600;color:var(--warn)}
+.ic{display:inline-flex;gap:2px;color:var(--c)}
+.ic svg{width:12px;height:12px;display:block}
+.ev .ed{flex:none;width:28px;border:0;background:transparent;border-radius:0 9px 9px 0;cursor:pointer;color:var(--soft);display:grid;place-items:center;padding:0}
+.ev .ed svg{width:15px;height:15px}
+.ev .ed:hover{background:rgba(23,17,12,.07);color:var(--ink)}
+.ev.wait{border-left-style:dashed;border-left-width:4px}
+.ev.ko .ti{text-decoration:line-through;color:var(--soft)}
+.ev.drag{opacity:.4}
+
+/* liste (téléphone) */
+.agenda{display:flex;flex-direction:column;gap:18px}
+.aday h3{font:700 12px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.aday h3 span{background:var(--terra);color:#fff;border-radius:999px;padding:2px 9px;letter-spacing:.06em}
+.aday.past{opacity:.6}
+.aday .ev{margin-bottom:8px;border-left-width:5px}
+.aday .ev .go{padding:10px 4px 11px 12px;gap:3px}
+.aday .ev .cl{font-size:11px}
+.aday .ev .ti{font-size:14.5px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.aday .ev .sl{font-size:13.5px}
+.aday .ev .ed{width:48px}
+.aday .ev .ed svg{width:18px;height:18px}
+.empty{color:var(--soft);font-style:italic;padding:8px 0}
+.todo{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+.todo .ev .ti{white-space:normal}
+.cerr{background:#FDEBDD;border:1px solid #F3C7A6;color:#6A2E10;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:14px}
+
+/* fenêtre de modification */
+dialog{margin:auto;border:0;border-radius:18px;padding:0;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 32px);color:var(--ink);background:var(--card);box-shadow:0 30px 80px rgba(23,17,12,.28)}
+dialog::backdrop{background:rgba(23,17,12,.45)}
+dialog form{padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.dcl{display:flex;align-items:center;gap:8px;font:700 12px Inter;letter-spacing:.08em;text-transform:uppercase;color:var(--c)}
+dialog h2{font-size:26px;margin:0;text-wrap:balance}
+.f{display:flex;flex-direction:column;gap:6px}
+.f label,.f .l{font:600 13px Inter;color:var(--soft)}
+.srow{display:grid;grid-template-columns:1fr 118px 44px;gap:8px;align-items:center}
+.srow .rm{height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font:600 18px Inter;color:var(--soft)}
+.srow .rm:hover{border-color:var(--terra);color:var(--terra)}
+#dSlots{display:flex;flex-direction:column;gap:8px}
+.chk{display:inline-flex;align-items:center;gap:8px;font:600 14px Inter;cursor:pointer;user-select:none}
+.chk input{width:18px;height:18px;min-height:0;accent-color:var(--terra);margin:0}
+.dacts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+.dacts .open{margin-left:auto}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,16px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:999px;padding:11px 18px;font:600 14px Inter;display:flex;gap:14px;align-items:center;transition:opacity .2s,transform .2s;z-index:50;max-width:calc(100vw - 32px)}
+.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast .lnkb{color:var(--ocre)}
+footer{margin-top:34px;color:var(--soft);font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+@media (max-width:760px){.nav h2{min-width:0;font-size:28px}.tools{align-items:flex-start}}
+@media (prefers-reduced-motion:reduce){.toast,.day{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">Petit Sac · Espace privé</div>
+      <h1>Calendrier <em>éditorial</em></h1>
+      <p class="sub">Les publications de tous les clients, mois par mois. Un clic ouvre la publication dans la webapp du client ; le crayon change sa date et ses heures.</p>
+    </div>
+    <div class="hbtn">
+      <a class="btn" href="./">← Planning</a>
+      <a class="btn" href="recettes.html">Recettes</a>
+    </div>
+  </header>
+
+  <!-- connexion : compte « Petit Sac Admin » de chaque webapp client -->
+  <section class="card hidden" id="conn" aria-labelledby="connT">
+    <h2 id="connT">Accès aux <em>webapps</em></h2>
+    <p class="msg">Mot de passe du compte « Petit Sac Admin » de chaque webapp client. Il se saisit une seule fois sur cet appareil.</p>
+    <div class="logins" id="logins"></div>
+  </section>
+
+  <div id="errs"></div>
+
+  <div class="tools">
+    <div class="nav">
+      <button type="button" id="prev" aria-label="Mois précédent">‹</button>
+      <button type="button" id="next" aria-label="Mois suivant">›</button>
+      <h2 id="mtitle" aria-live="polite"></h2>
+    </div>
+    <div class="right">
+      <button type="button" class="btn" id="todayBtn">Aujourd’hui</button>
+      <div class="seg" id="viewSeg" role="group" aria-label="Affichage">
+        <button type="button" data-view="mois" aria-pressed="true">Mois</button>
+        <button type="button" data-view="liste" aria-pressed="false">Liste</button>
+      </div>
+    </div>
+  </div>
+  <div class="legend" id="legend"></div>
+
+  <div class="cal" id="cal"></div>
+  <div class="agenda hidden" id="agenda"></div>
+
+  <section class="card hidden" id="todoCard" style="margin-top:26px">
+    <h2>À <em>programmer</em></h2>
+    <p class="msg" style="margin:-4px 0 12px">Fiches du calendrier sans date. Le crayon leur donne une date et une heure.</p>
+    <div class="todo" id="todo"></div>
+  </section>
+
+  <footer>
+    <span>Heures de Dakar (GMT). Les dates et les heures s’enregistrent directement dans la webapp de chaque client : le client y voit le même calendrier. Sur ordinateur, une publication se glisse aussi d’un jour à l’autre.</span>
+    <span id="connected"></span>
+  </footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgT">
+  <form id="dform" novalidate>
+    <p class="dcl" id="dCl"></p>
+    <h2 id="dlgT"></h2>
+    <p class="msg" id="dSt" style="margin-top:-8px"></p>
+    <div class="f"><label for="dDate">Date de publication</label><input type="date" id="dDate"></div>
+    <div class="f" id="dSlotsBox">
+      <span class="l">Réseaux et heures (heure de Dakar)</span>
+      <div id="dSlots"></div>
+      <button type="button" class="lnkb" id="dAdd" style="align-self:flex-start;padding:6px 0">+ Ajouter un réseau</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="dNoDate"> Sans date (retirer du calendrier)</label>
+    <p class="msg err" id="dErr" role="alert"></p>
+    <div class="dacts">
+      <button class="btn main" id="dSave">Enregistrer</button>
+      <button type="button" class="btn" id="dCancel">Annuler</button>
+      <a class="btn ghost open" id="dOpen">Ouvrir la fiche ↗</a>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span></span><button type="button" class="lnkb" hidden>Annuler</button></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, collection, doc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// Une ligne par client qui a une webapp de validation (projet Firebase dédié, compte « Petit Sac Admin »).
+// La couleur du client sert partout sur la page. Ajouter un client = ajouter une ligne ici.
+const CLIENTS = [
+  { k: 'pf', name: 'Party Factory', who: 'fatima', whoName: 'Fatima', color: '#A23E6E', tint: '#FBE4EE', app: 'https://party-factory-app.web.app/',
+    email: 'admin@party-factory-app.firebaseapp.com',
+    fb: { apiKey: 'AIzaSyDb7fv-qaLVA2L293ZYpr1DPerUqMKIxn0', authDomain: 'party-factory-app.firebaseapp.com', projectId: 'party-factory-app', appId: '1:35520918804:web:e209f5c6180151f42afe01' } },
+  { k: 'cr', name: 'Cap Résidences', who: 'client', whoName: 'Ibrahim', color: '#17725B', tint: '#DDF0E9', app: 'https://capresidences-app.web.app/',
+    email: 'admin@capresidences-app.firebaseapp.com',
+    fb: { apiKey: 'AIzaSyATUBQu-npbAHtwMISu7KKIZH6KqS9DtLY', authDomain: 'capresidences-app.firebaseapp.com', projectId: 'capresidences-app', appId: '1:859110374799:web:47d37a20d989867c175ffa' } },
+];
+const CL = Object.fromEntries(CLIENTS.map((c) => [c.k, c]));
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const show = (id, on) => $(id).classList.toggle('hidden', !on);
+const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const FMT = { carrousel: 'Carrousel', visuel: 'Visuel', reel: 'Reel', story: 'Story', couverture: 'Couverture Facebook', texte: 'Texte' };
+const NET = { igfb: 'Instagram + Facebook', ig: 'Instagram', fb: 'Facebook', tiktok: 'TikTok' };
+const SVG = {
+  ig: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="17.4" cy="6.6" r="1.5" fill="currentColor"/></svg>',
+  fb: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.6 21.5v-8h2.7l.4-3.2h-3.1V8.3c0-.9.3-1.5 1.6-1.5h1.7V4c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.3H7.8v3.2h2.7v8h3.1z"/></svg>',
+  tiktok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.7 2.5c.4 2.4 1.9 3.9 4.2 4.1v3.2c-1.5 0-3-.5-4.2-1.3v6.5c0 3.3-2.7 6-6 6s-6-2.7-6-6 2.7-6 6-6c.3 0 .6 0 .9.1v3.3c-.3-.1-.6-.2-.9-.2-1.5 0-2.7 1.2-2.7 2.7s1.2 2.7 2.7 2.7 2.7-1.2 2.7-2.7V2.5h3.3z"/></svg>',
+};
+const PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2"/></svg>';
+
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const dOf = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const nDay = (d) => (d.getDate() === 1 ? '1er' : String(d.getDate()));
+const dayLong = (s) => { const d = dOf(s); return `${JOURS[d.getDay()]} ${nDay(d)} ${MOIS[d.getMonth()]}`; };
+const hh = (t) => { const [h, m] = String(t).split(':'); return `${+h} h${m && m !== '00' ? ' ' + m : ''}`; };
+const slotsOf = (p) => (p.slots || []).slice().sort((a, b) => String(a.time).localeCompare(String(b.time)));
+const icons = (net) => `<i class="ic">${(net === 'igfb' ? ['ig', 'fb'] : [net]).map((n) => SVG[n] || '').join('')}</i><span class="sr">${NET[net] || esc(net)}</span>`;
+const isCalPost = (p) => !!p.date || /^mois/.test(p.series || '');
+// le titre commence déjà par le format (« Story · quiz… », « Reel « … » ») : on ne le répète pas
+const fmtIn = (p) => { const f = (FMT[p.format] || p.format || '').toLowerCase(); return !f || String(p.title || '').toLowerCase().startsWith(f); };
+
+const now = new Date();
+const S = { y: now.getFullYear(), m: now.getMonth(), view: 'mois', hidden: new Set() };
+try { S.view = localStorage.getItem('cal_view') || 'mois'; S.hidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]')); } catch (_) {}
+const narrow = matchMedia('(max-width: 760px)');
+const curView = () => (narrow.matches ? 'liste' : S.view);
+
+/* ---------- connexion ---------- */
+CLIENTS.forEach((c) => {
+  c.fa = initializeApp(c.fb, c.k); c.auth = getAuth(c.fa); c.db = getFirestore(c.fa);
+  c.user = undefined; c.posts = []; c.unsub = null; c.err = '';
+  onAuthStateChanged(c.auth, (u) => {
+    if (u && u.email !== c.email) { signOut(c.auth); return; }
+    c.unsub?.(); c.unsub = null; c.posts = []; c.err = ''; c.user = u || null;
+    if (u) c.unsub = onSnapshot(collection(c.db, 'posts'), (s) => { c.posts = s.docs.map((d) => ({ id: d.id, ...d.data() })); c.err = ''; render(); },
+      (e) => { console.error(e); c.err = `${c.name} : lecture impossible (${e.code || e.message}).`; render(); });
+    renderConn(); render();
+  });
+});
+function renderConn() {
+  const off = CLIENTS.filter((c) => c.user === null);
+  show('conn', off.length > 0);
+  $('logins').innerHTML = off.map((c) => `<form class="login" data-k="${c.k}" style="--c:${c.color};--t:${c.tint}">
+      <span class="who"><i class="dot"></i>${esc(c.name)}</span>
+      <input class="sr" type="email" name="username" autocomplete="username" value="${esc(c.email)}" tabindex="-1" readonly aria-hidden="true">
+      <input type="password" name="pw" autocomplete="current-password" required placeholder="Mot de passe" aria-label="Mot de passe Petit Sac Admin de ${esc(c.name)}">
+      <button class="btn main">Se connecter</button><p class="msg err" role="alert"></p></form>`).join('');
+  const on = CLIENTS.filter((c) => c.user);
+  $('connected').innerHTML = on.length ? 'Connecté à : ' + on.map((c) => `${esc(c.name)} (<button type="button" class="lnkb" data-out="${c.k}">se déconnecter</button>)`).join(' · ') : '';
+}
+$('logins').addEventListener('submit', async (e) => {
+  e.preventDefault(); const f = e.target, c = CL[f.dataset.k], b = f.querySelector('button'), m = f.querySelector('.msg');
+  b.disabled = true; m.textContent = '';
+  try { await signInWithEmailAndPassword(c.auth, c.email, f.pw.value); }
+  catch (x) { m.textContent = x.code === 'auth/too-many-requests' ? 'Trop d’essais : réessayez dans quelques minutes.' : 'Mot de passe incorrect.'; b.disabled = false; }
+});
+$('connected').addEventListener('click', (e) => { const b = e.target.closest('[data-out]'); if (b) signOut(CL[b.dataset.out].auth); });
+
+/* ---------- rendu ---------- */
+function status(c, p) {
+  if (p.admin === 'refuse' || p[c.who] === 'refuse') return { cls: ' ko', txt: 'non validé' };
+  if (p.admin !== 'valide') return { cls: ' wait', txt: 'à valider par Petit Sac' };
+  if (p[c.who] !== 'valide') return { cls: ' wait', txt: `en attente de ${c.whoName}` };
+  return { cls: '', txt: 'validé' };
+}
+function chip({ c, p, key }, drag) {
+  const L = slotsOf(p), st = status(c, p);
+  const sl = L.length ? L.map((s) => `<span>${hh(s.time)}${icons(s.net)}</span>`).join('') : '<span class="nt">Heure à fixer</span>';
+  const label = `${p.title} · ${c.name} · ${FMT[p.format] || p.format || ''}${p.date ? ' · ' + dayLong(p.date) : ''}${L.length ? ' · ' + L.map((s) => `${NET[s.net] || s.net} ${hh(s.time)}`).join(', ') : ''} · ${st.txt}`;
+  return `<div class="ev${st.cls}" style="--c:${c.color};--t:${c.tint}" data-key="${esc(key)}"${drag ? ' draggable="true"' : ''} title="${esc(label)}">
+    <a class="go" href="${c.app}#c_${encodeURIComponent(p.id)}" target="${c.k}-webapp" draggable="false" aria-label="${esc('Ouvrir dans la webapp : ' + label)}">
+      <span class="cl">${esc(c.name)}</span>
+      <span class="ti">${fmtIn(p) ? '' : `<b>${esc(FMT[p.format] || p.format || '')}</b> · `}${esc(p.title)}</span>
+      <span class="sl">${sl}</span></a>
+    <button type="button" class="ed" data-ed="${esc(key)}" aria-label="${esc('Modifier la date et les heures : ' + p.title)}">${PEN}</button></div>`;
+}
+const firstTime = (p) => slotsOf(p)[0]?.time || '99:99';
+function dated() {
+  const out = [];
+  CLIENTS.forEach((c, ci) => { if (!c.user || S.hidden.has(c.k)) return;
+    c.posts.forEach((p) => { if (p.date) out.push({ c, p, ci, key: c.k + ':' + p.id }); }); });
+  return out.sort((a, b) => firstTime(a.p).localeCompare(firstTime(b.p)) || a.ci - b.ci);
+}
+function render() {
+  const { y, m } = S, ym = `${y}-${pad(m + 1)}`, today = iso(new Date()), view = curView();
+  $('mtitle').textContent = `${MOIS[m][0].toUpperCase() + MOIS[m].slice(1)} ${y}`;
+  $('viewSeg').classList.toggle('hidden', narrow.matches);
+  $('viewSeg').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+  $('errs').innerHTML = CLIENTS.filter((c) => c.err).map((c) => `<p class="cerr">${esc(c.err)}</p>`).join('');
+  $('legend').innerHTML = CLIENTS.map((c) => {
+    const n = c.posts.filter((p) => p.date && p.date.startsWith(ym)).length, on = !S.hidden.has(c.k);
+    return `<button type="button" class="lg" data-f="${c.k}" aria-pressed="${on}" style="--c:${c.color};--t:${c.tint}" title="${on ? 'Masquer' : 'Afficher'} ${esc(c.name)}">
+      <i class="dot"></i>${esc(c.name)}<span class="n">${c.user ? n : c.user === null ? 'non connecté' : '…'}</span></button>`; }).join('')
+    + '<span class="key"><i></i>pointillés : pas encore validé des deux côtés</span>';
+  const byDay = new Map();
+  dated().forEach((it) => { if (!byDay.has(it.p.date)) byDay.set(it.p.date, []); byDay.get(it.p.date).push(it); });
+  show('cal', view === 'mois'); show('agenda', view === 'liste');
+  if (view === 'mois') {
+    const first = new Date(y, m, 1), last = new Date(y, m + 1, 0), cells = [];
+    for (let d = new Date(y, m, 1 - (first.getDay() + 6) % 7); d <= new Date(y, m + 1, 6 - (last.getDay() + 6) % 7); d.setDate(d.getDate() + 1)) cells.push(iso(d));
+    $('cal').innerHTML = DOW.map((d) => `<div class="dow" aria-hidden="true">${d}</div>`).join('') + cells.map((ds) => {
+      const L = byDay.get(ds) || [], d = dOf(ds);
+      return `<div class="day${d.getMonth() !== m ? ' out' : ''}${ds < today ? ' past' : ''}${ds === today ? ' today' : ''}" data-d="${ds}" role="group" aria-label="${dayLong(ds)}${L.length ? ', ' + L.length + ' publication' + (L.length > 1 ? 's' : '') : ''}">
+        <div class="dn"><b>${d.getDate()}</b></div>${L.map((it) => chip(it, true)).join('')}</div>`; }).join('');
+  } else {
+    // mois en cours : les jours déjà passés sont repliés derrière un bouton, la liste commence à aujourd'hui
+    const all = [...byDay.keys()].filter((d) => d.startsWith(ym)).sort(), past = all.filter((d) => d < today);
+    const fold = past.length > 0 && past.length < all.length, days = fold && !S.showPast ? all.filter((d) => d >= today) : all;
+    $('agenda').innerHTML = (fold ? `<button type="button" class="btn ghost" id="pastBtn" aria-expanded="${!!S.showPast}" style="align-self:flex-start">${S.showPast ? 'Masquer les jours passés' : `Afficher les jours passés (${past.length})`}</button>` : '')
+      + (days.length ? days.map((ds) => `<section class="aday${ds < today ? ' past' : ''}" data-d="${ds}" id="d_${ds}">
+        <h3>${dayLong(ds)}${ds === today ? '<span>Aujourd’hui</span>' : ''}</h3>${byDay.get(ds).map((it) => chip(it, false)).join('')}</section>`).join('')
+      : `<p class="empty">${CLIENTS.some((c) => c.user) ? 'Aucune publication ce mois-ci.' : 'Connectez-vous aux webapps pour voir le calendrier.'}</p>`);
+  }
+  const U = CLIENTS.flatMap((c, ci) => (c.user && !S.hidden.has(c.k) ? c.posts.filter((p) => !p.date && isCalPost(p)).map((p) => ({ c, p, ci, key: c.k + ':' + p.id })) : []));
+  $('todo').innerHTML = U.map((it) => chip(it, false)).join('');
+  show('todoCard', U.length > 0);
+}
+narrow.addEventListener('change', render);
+
+/* ---------- navigation ---------- */
+const go = (dm) => { S.m += dm; if (S.m < 0) { S.m = 11; S.y--; } if (S.m > 11) { S.m = 0; S.y++; } render(); };
+$('prev').onclick = () => go(-1);
+$('next').onclick = () => go(1);
+$('todayBtn').onclick = () => {
+  const n = new Date(); S.y = n.getFullYear(); S.m = n.getMonth(); render();
+  const t = iso(n), el = curView() === 'liste' ? [...document.querySelectorAll('.aday')].find((a) => a.dataset.d >= t) : document.querySelector('.day.today');
+  el?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+};
+$('agenda').addEventListener('click', (e) => { if (e.target.id === 'pastBtn') { S.showPast = !S.showPast; render(); } });
+$('viewSeg').addEventListener('click', (e) => { const b = e.target.closest('[data-view]'); if (!b) return;
+  S.view = b.dataset.view; try { localStorage.setItem('cal_view', S.view); } catch (_) {} render(); });
+$('legend').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (!b) return;
+  S.hidden.has(b.dataset.f) ? S.hidden.delete(b.dataset.f) : S.hidden.add(b.dataset.f);
+  try { localStorage.setItem('cal_hidden', JSON.stringify([...S.hidden])); } catch (_) {} render(); });
+
+/* ---------- modification de la date et des heures ---------- */
+const find = (key) => { const i = key.indexOf(':'), c = CL[key.slice(0, i)]; return { c, p: c?.posts.find((x) => x.id === key.slice(i + 1)) }; };
+let editing = null;
+function slotRow(s) {
+  const r = document.createElement('div'); r.className = 'srow';
+  r.innerHTML = `<select aria-label="Réseau">${Object.entries(NET).map(([k, l]) => `<option value="${k}"${k === s.net ? ' selected' : ''}>${l}</option>`).join('')}</select>
+    <input type="time" step="300" value="${esc(s.time || '')}" aria-label="Heure (Dakar)"><button type="button" class="rm" aria-label="Retirer ce réseau">×</button>`;
+  $('dSlots').append(r); syncAdd();
+}
+const syncAdd = () => { $('dAdd').classList.toggle('hidden', $('dSlots').children.length >= 4); };
+const syncNoDate = () => { const off = $('dNoDate').checked; $('dDate').disabled = off; $('dSlotsBox').style.opacity = off ? .5 : 1; };
+function openEdit(key) {
+  const { c, p } = find(key); if (!p) return;
+  editing = { c, p };
+  $('dCl').style.setProperty('--c', c.color);
+  $('dCl').innerHTML = `<i class="dot"></i>${esc(c.name)} · ${esc(FMT[p.format] || p.format || '')}`;
+  $('dlgT').textContent = p.title;
+  $('dSt').textContent = { 'non validé': 'Non validé.', 'à valider par Petit Sac': 'Pas encore validé par Petit Sac.', validé: `Validé par Petit Sac et par ${c.whoName}.` }[status(c, p).txt] || `Validé par Petit Sac, en attente de ${c.whoName}.`;
+  $('dDate').value = p.date || '';
+  $('dNoDate').checked = false; syncNoDate();
+  $('dSlots').innerHTML = ''; (p.slots?.length ? slotsOf(p) : [{ net: 'igfb', time: '' }]).forEach(slotRow);
+  $('dOpen').href = `${c.app}#c_${encodeURIComponent(p.id)}`; $('dOpen').target = c.k + '-webapp';
+  $('dErr').textContent = ''; $('dlg').showModal();
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-ed]'); if (b) openEdit(b.dataset.ed); });
+$('dAdd').onclick = () => { const used = [...$('dSlots').querySelectorAll('select')].map((s) => s.value); slotRow({ net: used.includes('tiktok') ? 'igfb' : 'tiktok', time: '' }); $('dSlots').lastElementChild.querySelector('input').focus(); };
+$('dSlots').addEventListener('click', (e) => { if (e.target.closest('.rm')) { e.target.closest('.srow').remove(); syncAdd(); } });
+$('dNoDate').onchange = syncNoDate;
+$('dCancel').onclick = () => $('dlg').close();
+$('dlg').addEventListener('click', (e) => { if (e.target === $('dlg')) $('dlg').close(); });
+$('dform').addEventListener('submit', async (e) => {
+  e.preventDefault(); if (!editing) return;
+  const { c, p } = editing, noDate = $('dNoDate').checked, date = $('dDate').value, err = (t) => { $('dErr').textContent = t; };
+  const rows = [...$('dSlots').querySelectorAll('.srow')].map((r) => ({ net: r.querySelector('select').value, time: r.querySelector('input').value.slice(0, 5) }))
+    .filter((s) => !noDate || /^\d{2}:\d{2}$/.test(s.time)); // sans date : les lignes sans heure sont simplement ignorées
+  if (!noDate && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return err('Choisissez une date.');
+  if (rows.some((s) => !/^\d{2}:\d{2}$/.test(s.time))) return err('Indiquez l’heure de chaque réseau (ou retirez la ligne).');
+  if (!noDate && !rows.length) return err('Ajoutez au moins un réseau avec son heure.');
+  $('dSave').disabled = true; err('');
+  try {
+    await updateDoc(doc(c.db, 'posts', p.id), { date: noDate ? null : date, slots: rows, updatedAt: serverTimestamp() });
+    $('dlg').close();
+    toast(noDate ? `« ${p.title} » retiré du calendrier` : `Enregistré : ${dayLong(date)} · ${rows.map((s) => hh(s.time)).join(' et ')}`);
+  } catch (x) { console.error(x); err('Enregistrement impossible : ' + (x.code || x.message)); }
+  finally { $('dSave').disabled = false; }
+});
+
+/* ---------- glisser-déposer (ordinateur) ---------- */
+let dragKey = null;
+document.addEventListener('dragstart', (e) => { const ev = e.target.closest?.('.ev[draggable=true]'); if (!ev) return;
+  dragKey = ev.dataset.key; ev.classList.add('drag'); e.dataTransfer.setData('text/plain', dragKey); e.dataTransfer.effectAllowed = 'move'; });
+document.addEventListener('dragend', () => { dragKey = null; document.querySelectorAll('.drag,.over').forEach((x) => x.classList.remove('drag', 'over')); });
+document.addEventListener('dragover', (e) => { const d = dragKey && e.target.closest?.('.day[data-d]'); if (!d) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.day.over').forEach((x) => x !== d && x.classList.remove('over')); d.classList.add('over'); });
+document.addEventListener('drop', async (e) => { const d = dragKey && e.target.closest?.('.day[data-d]'); if (!d) return;
+  e.preventDefault(); const key = dragKey, ds = d.dataset.d; d.classList.remove('over');
+  const { c, p } = find(key); if (!p || p.date === ds) return;
+  const prev = p.date, ref = doc(c.db, 'posts', p.id);
+  try {
+    await updateDoc(ref, { date: ds, updatedAt: serverTimestamp() });
+    toast(`« ${p.title} » déplacé au ${dayLong(ds).toLowerCase()}`, async () => {
+      try { await updateDoc(ref, { date: prev, updatedAt: serverTimestamp() }); toast('Déplacement annulé'); } catch (x) { toast('Annulation impossible : ' + (x.code || x.message)); } });
+  } catch (x) { console.error(x); toast('Déplacement impossible : ' + (x.code || x.message)); }
+});
+
+function toast(msg, undo) {
+  const t = $('toast'), b = t.querySelector('button');
+  t.querySelector('span').textContent = msg; b.hidden = !undo;
+  b.onclick = undo ? () => { t.classList.remove('on'); undo(); } : null;
+  t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), undo ? 8000 : 3500);
+}
+render();
+</script>
+</body>
+</html>
